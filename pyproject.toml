@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "epux"
+version = "0.2.0"
+description = "LLM-powered IELTS vocabulary & writing coach with spaced repetition and card collection, running locally."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "EPux" }]
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "platformdirs>=4.2.0",
+    "winotify>=1.1.0; platform_system == 'Windows'",
+]
+
+[project.scripts]
+epux = "epux.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["epux*"]
+
+[tool.setuptools.package-data]
+epux = ["web/*"]

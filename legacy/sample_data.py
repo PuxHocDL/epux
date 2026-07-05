@@ -1,0 +1,58 @@
+SAMPLE_WORDS: list[tuple[str, str, str, str, str]] = [
+    (
+        "figure out",
+        "hiểu ra, tìm ra cách giải quyết",
+        "I need to figure out why this app is not starting.",
+        "Phrasal verb rất hay gặp trong công việc.",
+        "work,phrasal-verb",
+    ),
+    (
+        "reliable",
+        "đáng tin cậy",
+        "A reliable study routine is better than a perfect plan.",
+        "Nhấn âm thứ hai: re-LI-a-ble.",
+        "daily,adjective",
+    ),
+    (
+        "deadline",
+        "hạn chót",
+        "The deadline is next Friday.",
+        "Danh từ đếm được.",
+        "work,noun",
+    ),
+    (
+        "instead of",
+        "thay vì",
+        "Try speaking out loud instead of only reading silently.",
+        "Theo sau thường là noun/gerund.",
+        "grammar,phrase",
+    ),
+    (
+        "confidence",
+        "sự tự tin",
+        "Confidence grows when you practice a little every day.",
+        "Danh từ; tính từ là confident.",
+        "mindset,noun",
+    ),
+    (
+        "improve",
+        "cải thiện",
+        "Recording your voice can help improve pronunciation.",
+        "Verb; noun là improvement.",
+        "learning,verb",
+    ),
+    (
+        "accurate",
+        "chính xác",
+        "The transcript is not always accurate, but it is useful.",
+        "Nhấn âm đầu: AC-cu-rate.",
+        "learning,adjective",
+    ),
+    (
+        "keep track of",
+        "theo dõi",
+        "EPux helps you keep track of due vocabulary.",
+        "Phrasal expression.",
+        "learning,phrase",
+    ),
+]

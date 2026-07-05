@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EPux — Vocabulary & Writing Coach</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>">
+</head>
+<body>
+  <div class="app">
+    <nav class="sidebar">
+      <div class="logo">EP<span>ux</span><small>IELTS vocab &amp; writing</small></div>
+      <button class="nav-btn" data-view="dashboard">🏠 Hôm nay</button>
+      <button class="nav-btn" data-view="review">🧠 Ôn tập <span class="badge" id="due-badge" hidden></span></button>
+      <button class="nav-btn" data-view="quiz">⚡ Quiz</button>
+      <button class="nav-btn" data-view="words">📚 Từ vựng</button>
+      <button class="nav-btn" data-view="writing">✍️ Writing</button>
+      <button class="nav-btn" data-view="collection">🃏 Bộ sưu tập</button>
+      <button class="nav-btn" data-view="stats">📈 Thống kê</button>
+      <button class="nav-btn" data-view="settings">⚙️ Cài đặt</button>
+    </nav>
+    <main class="main" id="main"></main>
+  </div>
+  <div id="toasts"></div>
+  <div id="modal-root"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
