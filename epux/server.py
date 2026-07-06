@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import threading
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,7 @@ from . import game
 from .config import AppConfig
 from .db import Database
 from .llm import LLMClient, LLMError
-from .srs import preview_intervals
+from .srs import parse_dt, preview_intervals, retention, utc_now
 
 WEB_DIR = Path(__file__).parent / "web"
 
@@ -129,6 +130,28 @@ def add_word(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
                 source="manual",
             )
     return {"word": word.to_dict()}
+
+
+@app.get("/api/words/{word_id}")
+def word_detail(word_id: int) -> dict[str, Any]:
+    with db_lock:
+        word = db.get_word(word_id)
+        if word is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy từ này.")
+        last_review = db.last_review_at(word_id)
+    anchor = parse_dt(last_review) or parse_dt(word.created_at)
+    elapsed_days = max(0.0, (utc_now() - anchor).total_seconds() / 86400) if anchor else 0.0
+    return {
+        "word": word.to_dict(),
+        "srs": {
+            "retention_now": round(retention(max(word.stability, 0.007), elapsed_days) * 100),
+            "last_review": last_review,
+            "intervals": preview_intervals(
+                ease=word.ease, repetitions=word.repetitions,
+                lapses=word.lapses, stability=word.stability,
+            ),
+        },
+    }
 
 
 @app.put("/api/words/{word_id}")
@@ -357,13 +380,54 @@ def open_pack(pack_id: int) -> dict[str, Any]:
 @app.get("/api/collection")
 def collection() -> dict[str, Any]:
     with db_lock:
-        owned = db.list_words(owned=True, limit=2000)
+        cards = db.list_words(limit=5000)  # cả thẻ chưa sở hữu -> hiện silhouette
         stats = db.stats()
     return {
-        "cards": [w.to_dict() for w in owned],
+        "cards": [w.to_dict() for w in cards],
         "by_rarity": stats["by_rarity"],
+        "total_stars": stats["total_stars"],
         "rarities": game.RARITY_ORDER,
+        "max_stars": game.MAX_STARS,
     }
+
+
+@app.post("/api/cards/{word_id}/upgrade")
+def upgrade_card(word_id: int) -> dict[str, Any]:
+    try:
+        with db_lock:
+            word = db.upgrade_card(word_id, max_stars=game.MAX_STARS)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"word": word.to_dict()}
+
+
+@app.post("/api/collection/expand")
+def collection_expand(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    """AI mở rộng kho thẻ: sinh từ mới trên tối đa 3 chủ đề cùng lúc."""
+    _llm_guard()
+    total = max(5, min(30, int(payload.get("count", 15))))
+    with db_lock:
+        topics = list(dict.fromkeys(db.topics_in_words() + [t["name"] for t in db.list_topics()]))
+    if not topics:
+        suggestions = _run_llm(llm.suggest_topics, [], config.level)
+        with db_lock:
+            db.upsert_topics(suggestions)
+        topics = [str(t.get("name", "")) for t in suggestions if t.get("name")]
+    chosen = random.sample(topics, min(3, len(topics)))
+    per_topic = max(2, total // len(chosen))
+    created: list[Any] = []
+    for topic in chosen:
+        with db_lock:
+            known = db.all_terms()
+        try:
+            items = llm.generate_vocab(topic, config.level, per_topic, known)
+        except LLMError:
+            continue
+        with db_lock:
+            created.extend(_word_from_llm(item, topic=topic, source="auto") for item in items)
+    if not created:
+        raise HTTPException(status_code=503, detail="LLM không sinh được từ mới, thử lại sau nhé.")
+    return {"added": len(created), "topics": chosen, "words": [w.to_dict() for w in created]}
 
 
 # ------------------------------------------------------------------ config

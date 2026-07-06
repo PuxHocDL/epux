@@ -8,6 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>">
 </head>
 <body>
+  <div class="aurora"><i></i><i></i><i></i></div>
   <div class="app">
     <nav class="sidebar">
       <div class="logo">EP<span>ux</span><small>IELTS vocab &amp; writing</small></div>
@@ -19,11 +20,13 @@
       <button class="nav-btn" data-view="collection">🃏 Bộ sưu tập</button>
       <button class="nav-btn" data-view="stats">📈 Thống kê</button>
       <button class="nav-btn" data-view="settings">⚙️ Cài đặt</button>
+      <button class="nav-btn" id="sfx-toggle" style="margin-top: auto;">🔊 Âm thanh</button>
     </nav>
     <main class="main" id="main"></main>
   </div>
   <div id="toasts"></div>
   <div id="modal-root"></div>
+  <script src="/static/sfx.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

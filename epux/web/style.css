@@ -1,4 +1,12 @@
 /* ============ EPux — Arcane Codex dark fantasy theme ============ */
+
+/* Fonts nhúng local (OFL): Be Vietnam Pro cho UI tiếng Việt, Cinzel cho chữ Latin trang trí */
+@font-face { font-family: "Be Vietnam Pro"; src: url("/static/fonts/BeVietnamPro-Regular.ttf"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("/static/fonts/BeVietnamPro-Medium.ttf"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("/static/fonts/BeVietnamPro-Bold.ttf"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Be Vietnam Pro"; src: url("/static/fonts/BeVietnamPro-ExtraBold.ttf"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Cinzel"; src: url("/static/fonts/Cinzel.ttf"); font-weight: 400 900; font-display: swap; }
+
 :root {
   --bg: #0b0a12;
   --surface: #16141f;
@@ -17,7 +25,10 @@
   --good: #3fb950;
   --bad: #e05555;
   --warn: #f0b429;
-  --font-display: Georgia, "Palatino Linotype", "Times New Roman", serif;
+  --font-body: "Be Vietnam Pro", system-ui, "Segoe UI", sans-serif;
+  /* tiêu đề tiếng Việt: BVP đậm (đủ glyph dấu); chữ Latin trang trí: Cinzel kiểu khắc La Mã */
+  --font-display: "Be Vietnam Pro", system-ui, "Segoe UI", sans-serif;
+  --font-epic: "Cinzel", "Be Vietnam Pro", serif;
   /* chart series (dark-validated) */
   --series-1: #3987e5;
   --series-2: #199e70;
@@ -35,8 +46,11 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* attribute hidden phải thắng mọi display của class (vd .rate-row display:grid) */
+[hidden] { display: none !important; }
+
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   background:
     radial-gradient(1100px 600px at 15% -10%, rgba(80, 60, 160, 0.20), transparent 55%),
     radial-gradient(900px 500px at 105% 15%, rgba(40, 90, 140, 0.16), transparent 50%),
@@ -72,6 +86,28 @@ body::before {
 button { font: inherit; cursor: pointer; }
 input, select, textarea { font: inherit; }
 
+/* ---- Aurora background (kiểu ReactBits Aurora, CSS thuần) ---- */
+.aurora { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; filter: blur(70px); }
+.aurora i { position: absolute; border-radius: 50%; opacity: 0.22; }
+.aurora i:nth-child(1) {
+  width: 46vw; height: 46vw; top: -14%; left: -8%;
+  background: radial-gradient(circle, #6d4dd8, transparent 65%);
+  animation: drift1 26s ease-in-out infinite alternate;
+}
+.aurora i:nth-child(2) {
+  width: 38vw; height: 38vw; top: 4%; right: -10%;
+  background: radial-gradient(circle, #1b6f9e, transparent 65%);
+  animation: drift2 32s ease-in-out infinite alternate;
+}
+.aurora i:nth-child(3) {
+  width: 42vw; height: 42vw; bottom: -18%; left: 28%;
+  background: radial-gradient(circle, #8e2f63, transparent 65%);
+  animation: drift3 38s ease-in-out infinite alternate;
+}
+@keyframes drift1 { to { transform: translate(9vw, 7vh) scale(1.25); } }
+@keyframes drift2 { to { transform: translate(-8vw, 10vh) scale(1.15); } }
+@keyframes drift3 { to { transform: translate(-10vw, -8vh) scale(1.3); } }
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 5px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -95,17 +131,19 @@ input, select, textarea { font: inherit; }
 }
 
 .logo {
-  font-family: var(--font-display);
+  font-family: var(--font-epic);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 1px;
   padding: 0 10px 16px;
-  background: linear-gradient(120deg, var(--gold-2), var(--gold) 45%, #a8843c);
+  background: linear-gradient(120deg, var(--gold-2) 38%, #fff8e6 50%, var(--gold) 62%);
+  background-size: 220% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 0 24px rgba(217, 180, 92, 0.25);
+  animation: sheen-text 5s linear infinite;
 }
+@keyframes sheen-text { from { background-position: 120% center; } to { background-position: -120% center; } }
 .logo small {
   display: block;
   font-family: system-ui, sans-serif;
@@ -164,25 +202,39 @@ input, select, textarea { font: inherit; }
 
 .page-title {
   font-family: var(--font-display);
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 1.7rem;
+  font-weight: 800;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
-  background: linear-gradient(120deg, #fdf6e3, var(--gold-2) 60%, var(--gold));
+  background: linear-gradient(110deg, var(--gold-2) 38%, #fff8e6 50%, var(--gold) 62%);
+  background-size: 220% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  animation: sheen-text 6s linear infinite;
 }
-.page-title span { -webkit-text-fill-color: var(--muted); font-family: system-ui, sans-serif; font-weight: 500; }
+.page-title span { -webkit-text-fill-color: var(--muted); font-family: var(--font-body); font-weight: 500; }
 .page-sub { color: var(--muted); margin-bottom: 24px; font-size: 0.9rem; }
 
 /* ============ common ============ */
 .card {
+  position: relative;
   background: linear-gradient(170deg, rgba(255,255,255,0.03), transparent 40%), var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 18px 20px;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Spotlight theo con trỏ (kiểu ReactBits Spotlight Card) ---- */
+.card::after, .tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(460px circle at var(--mx, -400px) var(--my, -400px),
+    rgba(139, 124, 248, 0.09), transparent 55%);
+  pointer-events: none;
 }
 
 .row { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -197,6 +249,7 @@ input, select, textarea { font: inherit; }
   border-radius: 10px;
   padding: 8px 16px;
   font-size: 0.9rem;
+  white-space: nowrap;
   transition: transform 0.15s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
 }
 .btn:hover { background: var(--surface-3); transform: translateY(-1px); border-color: rgba(255,255,255,0.16); }
@@ -280,8 +333,8 @@ label.field { display: block; font-size: 0.8rem; color: var(--muted); margin-bot
 }
 .tile:hover { transform: translateY(-3px); border-color: rgba(217, 180, 92, 0.3); box-shadow: 0 10px 28px rgba(0,0,0,0.45); }
 .tile .t-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.3px; }
-.tile .t-value { font-family: var(--font-display); font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
-.tile .t-value small { font-size: 0.85rem; font-weight: 500; color: var(--text-2); font-family: system-ui, sans-serif; }
+.tile .t-value { font-family: var(--font-epic); font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
+.tile .t-value small { font-size: 0.85rem; font-weight: 500; color: var(--text-2); font-family: var(--font-body); }
 .tile .t-sub { font-size: 0.75rem; color: var(--text-2); margin-top: 4px; }
 
 .xpbar { height: 7px; background: rgba(0,0,0,0.35); border-radius: 4px; margin-top: 8px; overflow: hidden; }
@@ -398,7 +451,9 @@ label.field { display: block; font-size: 0.8rem; color: var(--muted); margin-bot
   position: relative;
   border-radius: 14px;
   padding: 2px;
-  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1), filter 0.25s;
+  /* tilt 3D theo chuột do JS đặt transform inline (kiểu ReactBits Tilted Card) */
+  transition: transform 0.18s ease-out, filter 0.25s;
+  will-change: transform;
 }
 .tcg::before {
   /* khung "kim loại" theo rarity */
@@ -418,12 +473,14 @@ label.field { display: block; font-size: 0.8rem; color: var(--muted); margin-bot
   animation: hueshift 5s linear infinite;
 }
 @keyframes hueshift { to { filter: hue-rotate(360deg); } }
-.tcg:hover { transform: translateY(-4px) scale(1.015); filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--rc) 35%, transparent)); }
+.tcg:hover { filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--rc) 35%, transparent)); }
 
 .tcg-frame {
   position: relative;
   border-radius: 12px;
   background:
+    /* glare chạy theo chuột khi tilt (--gx/--gy do JS đặt) */
+    radial-gradient(320px circle at var(--gx, 50%) var(--gy, -80%), rgba(255, 255, 255, 0.10), transparent 55%),
     radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--rc) 16%, transparent), transparent 55%),
     linear-gradient(180deg, #1c1928, #141220);
   padding: 12px 14px 14px;
@@ -473,32 +530,85 @@ label.field { display: block; font-size: 0.8rem; color: var(--muted); margin-bot
   justify-content: center;
   overflow: hidden;
 }
-.tcg-art::before, .tcg-art::after {
-  content: "✦";
-  position: absolute;
-  font-size: 0.6rem;
-  color: color-mix(in srgb, var(--rc-2) 80%, transparent);
-  opacity: 0.9;
+/* chòm sao — art chính của thẻ */
+.tcg-art svg.const { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tcg-art svg.const line {
+  stroke: var(--rc);
+  stroke-width: 0.45;
+  opacity: 0.55;
+  stroke-linecap: round;
 }
-.tcg-art::before { top: 5px; left: 8px; }
-.tcg-art::after { bottom: 5px; right: 8px; }
-.tcg-glyph {
-  font-family: var(--font-display);
-  font-size: 2.6rem;
+.tcg-art svg.const .halo { fill: var(--rc); opacity: 0.28; }
+.tcg-art svg.const .star { fill: #fff; }
+
+/* thần hộ mệnh */
+.tcg-patron-icon {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  font-size: 1.05rem;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--rc) 75%, transparent));
+}
+.tcg-patron-name {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-epic);
+  font-size: 0.58rem;
   font-weight: 700;
-  line-height: 1;
-  background: linear-gradient(160deg, #fff, var(--rc-2) 55%, var(--rc));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 2px 10px color-mix(in srgb, var(--rc) 65%, transparent));
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--rc-2) 80%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--rc) 50%, transparent);
+}
+
+/* cấp sao + bản sao */
+.tcg-stars {
+  text-align: center;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  letter-spacing: 2px;
+  color: var(--gold-2);
+  text-shadow: 0 0 8px rgba(217, 180, 92, 0.5);
+}
+.tcg-stars .dim { color: rgba(255, 255, 255, 0.14); text-shadow: none; }
+.tcg-stars .dupes {
+  margin-left: 8px;
+  letter-spacing: 0;
+  font-size: 0.68rem;
+  color: var(--text-2);
+  background: var(--surface-3);
+  border-radius: 8px;
+  padding: 1px 7px;
+  vertical-align: 1px;
+}
+
+/* thẻ chưa sở hữu — silhouette bí ẩn */
+.tcg.locked { filter: saturate(0.25) brightness(0.72); cursor: pointer; }
+.tcg.locked:hover { filter: saturate(0.45) brightness(0.9); }
+.tcg.locked .tcg-name { color: var(--muted); letter-spacing: 4px; }
+.tcg.locked .tcg-ipa { font-size: 0.7rem; }
+.tcg-lock { font-size: 0.8rem; opacity: 0.85; }
+
+/* 5 sao — thăng hoa */
+.tcg.ascended { box-shadow: 0 0 20px color-mix(in srgb, var(--rc) 40%, transparent); }
+.tcg.ascended .tcg-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.16) 46%, rgba(255,255,255,0.06) 52%, transparent 66%);
+  background-size: 240% 100%;
+  animation: shimmer 3s linear infinite;
+  pointer-events: none;
 }
 
 .tcg-name {
-  font-family: var(--font-display);
+  font-family: var(--font-epic);
   font-weight: 700;
-  font-size: 1.06rem;
-  letter-spacing: 0.3px;
+  font-size: 1.02rem;
+  letter-spacing: 0.5px;
   text-align: center;
 }
 .tcg-ipa { text-align: center; color: var(--muted); font-size: 0.76rem; margin-top: 2px; }
@@ -553,7 +663,7 @@ label.field { display: block; font-size: 0.8rem; color: var(--muted); margin-bot
 .flashcard::before { top: 12px; left: 16px; }
 .flashcard::after { bottom: 12px; right: 16px; }
 .flashcard .f-term {
-  font-family: var(--font-display);
+  font-family: var(--font-epic);
   font-size: 2.3rem;
   font-weight: 800;
   background: linear-gradient(150deg, #fff, var(--rc-2, #cfc6ff));
@@ -639,7 +749,7 @@ label.field { display: block; font-size: 0.8rem; color: var(--muted); margin-bot
 
 .band-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
 .band-tile { background: rgba(0,0,0,0.28); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; text-align: center; }
-.band-tile .b-num { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--accent-2); }
+.band-tile .b-num { font-family: var(--font-epic); font-size: 1.5rem; font-weight: 800; color: var(--accent-2); }
 .band-tile.overall { border-color: rgba(217, 180, 92, 0.4); box-shadow: 0 0 18px rgba(217, 180, 92, 0.12); }
 .band-tile.overall .b-num {
   font-size: 2rem;
@@ -766,7 +876,7 @@ details.improved .imp-text { margin-top: 10px; line-height: 1.7; color: var(--te
   animation: shimmer 2.8s linear infinite;
 }
 .pack-visual .pv-sigil {
-  font-family: var(--font-display);
+  font-family: var(--font-epic);
   font-size: 3.2rem;
   font-weight: 800;
   background: linear-gradient(160deg, #fff, var(--pv-c));
@@ -826,7 +936,7 @@ details.improved .imp-text { margin-top: 10px; line-height: 1.7; color: var(--te
   100% { transform: scale(1) rotateY(0); opacity: 1; }
 }
 .rv-rarity-banner {
-  font-family: var(--font-display);
+  font-family: var(--font-epic);
   font-size: 1.7rem;
   font-weight: 900;
   letter-spacing: 8px;
@@ -837,6 +947,36 @@ details.improved .imp-text { margin-top: 10px; line-height: 1.7; color: var(--te
 }
 .rv-note { font-size: 0.78rem; color: var(--warn); margin-top: 12px; animation: rise 0.5s 0.55s ease both; }
 .rv-actions { margin-top: 18px; animation: rise 0.5s 0.6s ease both; }
+
+/* ---- modal chi tiết thẻ ---- */
+.modal:has(.detail-grid) { max-width: 700px; }
+.detail-grid { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 640px) { .detail-grid { grid-template-columns: 1fr; } .detail-card { max-width: 250px; margin: 0 auto; } }
+.detail-card .tcg { cursor: default; }
+.d-patron { font-size: 1.02rem; }
+.d-patron b { font-family: var(--font-epic); letter-spacing: 0.5px; color: var(--rc-2, var(--gold-2)); }
+.d-power { margin-top: 8px; color: var(--text-2); font-size: 0.9rem; }
+.d-power b { color: var(--gold-2); font-size: 1.05rem; }
+.d-power .asc {
+  color: var(--gold-2);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  margin-left: 6px;
+  text-shadow: 0 0 10px var(--gold);
+}
+.d-block { margin-top: 15px; }
+.d-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.d-example { font-style: italic; color: var(--text-2); line-height: 1.55; }
+.d-sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+.d-stars .tcg-stars { text-align: left; margin: 0 0 4px; font-size: 1rem; }
 
 /* particles */
 .spark {
@@ -883,7 +1023,24 @@ table.datatable th { color: var(--muted); font-weight: 600; }
 .word-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .word-row:last-child { border-bottom: none; }
 .word-row .w-main { flex: 1; min-width: 0; }
-.word-row .w-term { font-weight: 700; font-family: var(--font-display); letter-spacing: 0.3px; }
+.word-row .w-term { font-weight: 700; letter-spacing: 0.2px; }
+.w-term[data-id] { cursor: pointer; transition: color 0.15s; }
+.w-term[data-id]:hover { color: #cfc6ff; text-decoration: underline dotted; }
+
+/* nút loa đọc từ (dạng icon trần; bản trong modal dùng thêm .btn nên giữ nền nút) */
+.speak-btn:not(.btn) {
+  background: none;
+  border: none;
+  padding: 2px 5px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  cursor: pointer;
+  filter: drop-shadow(0 0 6px rgba(90, 141, 240, 0.4));
+  transition: transform 0.15s;
+  vertical-align: middle;
+}
+.speak-btn:not(.btn):hover { transform: scale(1.25); }
+.f-speak { font-size: 1.15rem; }
 .word-row .w-ipa { color: var(--muted); font-size: 0.8rem; margin-left: 6px; }
 .word-row .w-meaning { color: var(--text-2); font-size: 0.88rem; margin-top: 2px; }
 .word-row .w-example { color: var(--muted); font-size: 0.82rem; font-style: italic; margin-top: 3px; }

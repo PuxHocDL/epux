@@ -32,6 +32,8 @@ class VocabItem:
     is_gem: bool
     owned: bool
     owned_at: str
+    stars: int
+    dupes: int
     source: str
     ease: float
     interval_days: float
@@ -188,6 +190,8 @@ class Database:
             "is_gem": "INTEGER NOT NULL DEFAULT 0",
             "owned": "INTEGER NOT NULL DEFAULT 0",
             "owned_at": "TEXT NOT NULL DEFAULT ''",
+            "stars": "INTEGER NOT NULL DEFAULT 0",
+            "dupes": "INTEGER NOT NULL DEFAULT 0",
             "source": "TEXT NOT NULL DEFAULT 'manual'",
             "stability": "REAL NOT NULL DEFAULT 0",
         }
@@ -199,6 +203,8 @@ class Database:
         self._conn.execute(
             "UPDATE words SET stability = max(interval_days, 0.001) WHERE stability <= 0"
         )
+        # Thẻ đã sở hữu trước khi có hệ sao: về 1 sao.
+        self._conn.execute("UPDATE words SET stars = 1 WHERE owned = 1 AND stars < 1")
         self._conn.commit()
 
     # ----------------------------------------------------------------- words
@@ -356,10 +362,38 @@ class Database:
 
     def set_owned(self, word_id: int) -> None:
         self._conn.execute(
-            "UPDATE words SET owned = 1, owned_at = ? WHERE id = ?",
+            "UPDATE words SET owned = 1, owned_at = ?, stars = max(stars, 1) WHERE id = ?",
             (format_dt(utc_now()), word_id),
         )
         self._conn.commit()
+
+    def add_dupe(self, word_id: int) -> VocabItem:
+        self._conn.execute("UPDATE words SET dupes = dupes + 1 WHERE id = ?", (word_id,))
+        self._conn.commit()
+        item = self.get_word(word_id)
+        assert item is not None
+        return item
+
+    def upgrade_card(self, word_id: int, max_stars: int = 5) -> VocabItem:
+        """Gộp bản sao để nâng sao: lên sao n+1 tốn n bản sao."""
+        item = self.get_word(word_id)
+        if item is None:
+            raise ValueError("Không tìm thấy thẻ này.")
+        if not item.owned:
+            raise ValueError("Bạn chưa sở hữu thẻ này.")
+        if item.stars >= max_stars:
+            raise ValueError("Thẻ đã đạt cấp sao tối đa.")
+        cost = item.stars
+        if item.dupes < cost:
+            raise ValueError(f"Cần {cost} bản sao để nâng sao (đang có {item.dupes}).")
+        self._conn.execute(
+            "UPDATE words SET stars = stars + 1, dupes = dupes - ? WHERE id = ?",
+            (cost, word_id),
+        )
+        self._conn.commit()
+        fresh = self.get_word(word_id)
+        assert fresh is not None
+        return fresh
 
     def unowned_words(self, rarity: str = "") -> list[VocabItem]:
         if rarity:
@@ -369,6 +403,16 @@ class Database:
         else:
             rows = self._conn.execute("SELECT * FROM words WHERE owned = 0").fetchall()
         return [self._item_from_row(row) for row in rows]
+
+    def words_by_rarity(self, rarity: str) -> list[VocabItem]:
+        rows = self._conn.execute("SELECT * FROM words WHERE rarity = ?", (rarity,)).fetchall()
+        return [self._item_from_row(row) for row in rows]
+
+    def last_review_at(self, word_id: int) -> str | None:
+        row = self._conn.execute(
+            "SELECT max(reviewed_at) AS ts FROM reviews WHERE word_id = ?", (word_id,)
+        ).fetchone()
+        return row["ts"] if row and row["ts"] else None
 
     # ---------------------------------------------------------------- review
 
@@ -726,11 +770,17 @@ class Database:
         words = self._conn.execute("SELECT count(*) FROM words").fetchone()[0]
         writings = self._conn.execute("SELECT count(*) FROM writings WHERE overall_band IS NOT NULL").fetchone()[0]
         owned = self._conn.execute("SELECT count(*) FROM words WHERE owned = 1").fetchone()[0]
-        return reviews * 2 + quiz_ok * 3 + words * 5 + writings * 25 + owned * 10
+        extra_stars = self._conn.execute(
+            "SELECT coalesce(sum(stars - 1), 0) FROM words WHERE owned = 1"
+        ).fetchone()[0]
+        return reviews * 2 + quiz_ok * 3 + words * 5 + writings * 25 + owned * 10 + extra_stars * 20
 
     def stats(self) -> dict[str, Any]:
         total = self._conn.execute("SELECT count(*) FROM words").fetchone()[0]
         owned = self._conn.execute("SELECT count(*) FROM words WHERE owned = 1").fetchone()[0]
+        total_stars = self._conn.execute(
+            "SELECT coalesce(sum(stars), 0) FROM words WHERE owned = 1"
+        ).fetchone()[0]
         mastered = self._conn.execute("SELECT count(*) FROM words WHERE stability >= 21").fetchone()[0]
         by_rarity = {
             row["rarity"]: {"total": row["total"], "owned": row["owned_count"]}
@@ -747,6 +797,7 @@ class Database:
         return {
             "total_words": total,
             "owned_cards": owned,
+            "total_stars": total_stars,
             "mastered": mastered,
             "due": self.due_count(),
             "by_rarity": by_rarity,
@@ -792,6 +843,8 @@ class Database:
             is_gem=bool(row["is_gem"]),
             owned=bool(row["owned"]),
             owned_at=row["owned_at"],
+            stars=int(row["stars"]),
+            dupes=int(row["dupes"]),
             source=row["source"],
             ease=float(row["ease"]),
             interval_days=float(row["interval_days"]),

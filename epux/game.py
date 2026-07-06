@@ -134,40 +134,58 @@ def claim_challenge(db: Database, config: AppConfig, code: str) -> dict[str, Any
 # ------------------------------------------------------------------- packs
 
 
+MAX_STARS = 5
+
+
 def open_pack(db: Database, llm: LLMClient, config: AppConfig, pack_id: int) -> dict[str, Any]:
+    """Mở pack: roll rarity -> ưu tiên thẻ chưa sở hữu, có thể rèn từ mới (LLM)
+    hoặc ra bản sao (dupe) của thẻ đã có — dupe dùng để gộp nâng sao."""
     pack = db.get_unopened_pack(pack_id)
     if pack is None:
         raise ValueError("Pack không tồn tại hoặc đã mở.")
     rolled = roll_rarity(pack["tier"])
-    generated = False
+    kind = "new"
 
-    word = _pick_unowned(db, rolled)
+    pool = db.words_by_rarity(rolled)
+    unowned = [w for w in pool if not w.owned]
+    owned = [w for w in pool if w.owned]
+
+    word: VocabItem | None = None
+    if unowned and (not owned or random.random() < 0.75):
+        word = random.choice(unowned)
+    elif owned or llm.configured:
+        # Hết (hoặc trượt roll) thẻ mới của rarity này: 60% rèn từ mới, 40% ra bản sao.
+        forge_first = llm.configured and (not owned or random.random() < 0.6)
+        if forge_first:
+            word = _generate_for_rarity(db, llm, config, rolled)
+            kind = "forged" if word is not None else "new"
+        if word is None and owned:
+            word = random.choice(owned)
+            kind = "dupe"
+
     if word is None:
-        word = _generate_for_rarity(db, llm, config, rolled)
-        generated = word is not None
-    if word is None:
-        # LLM lỗi/không có thẻ đúng rarity: rơi xuống thẻ chưa sở hữu bất kỳ.
         fallback = db.unowned_words()
         if not fallback:
             raise ValueError("Không còn thẻ để mở và LLM chưa sẵn sàng. Hãy tạo thêm từ mới trước.")
         word = random.choice(fallback)
         rolled = word.rarity
+        kind = "new"
 
-    db.set_owned(word.id)
+    if kind == "dupe":
+        fresh = db.add_dupe(word.id)
+    else:
+        db.set_owned(word.id)
+        fresh = db.get_word(word.id)
+        assert fresh is not None
     db.mark_pack_opened(pack_id, word.id)
-    fresh = db.get_word(word.id)
-    assert fresh is not None
     return {
         "rarity": rolled,
         "tier": pack["tier"],
-        "generated": generated,
+        "kind": kind,
+        "generated": kind == "forged",
+        "duplicate": kind == "dupe",
         "card": fresh.to_dict(),
     }
-
-
-def _pick_unowned(db: Database, rarity: str) -> VocabItem | None:
-    candidates = db.unowned_words(rarity)
-    return random.choice(candidates) if candidates else None
 
 
 def _generate_for_rarity(db: Database, llm: LLMClient, config: AppConfig, rarity: str) -> VocabItem | None:

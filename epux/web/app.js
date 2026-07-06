@@ -38,6 +38,8 @@ function toast(msg, type = "") {
   el.textContent = msg;
   $("#toasts").appendChild(el);
   setTimeout(() => el.remove(), 4500);
+  if (type === "err") SFX.play("err");
+  else if (type === "ok") SFX.play("ok");
 }
 
 function esc(s) {
@@ -82,19 +84,106 @@ function dueLabel(dueAt) {
   return `${Math.round(mins / 1440)} ngày nữa`;
 }
 
-function cardHTML(w, actions = "") {
+/* ---------- gacha: chòm sao + thần hộ mệnh Hy Lạp ---------- */
+
+// Mỗi bậc rarity là một "cấp bậc thần thoại": [tên, biểu tượng, danh xưng tiếng Việt]
+const PATRONS = {
+  D: [["Satyr", "🐐", "Tinh linh đồng nội"], ["Nymph", "🌿", "Tiên nữ suối nguồn"], ["Siren", "🧜‍♀️", "Người cá mê hoặc"], ["Centaur", "🐎", "Nhân mã thảo nguyên"], ["Harpy", "🪶", "Điểu nữ cuồng phong"]],
+  C: [["Perseus", "🗡️", "Anh hùng diệt Medusa"], ["Heracles", "💪", "Lực sĩ 12 kỳ công"], ["Achilles", "🛡️", "Chiến binh gót ngọc"], ["Odysseus", "⛵", "Lãng khách mưu trí"], ["Theseus", "🐂", "Kẻ hạ Minotaur"], ["Atalanta", "🏃‍♀️", "Nữ thợ săn thần tốc"]],
+  B: [["Nike", "🕊️", "Nữ thần chiến thắng"], ["Iris", "🌈", "Sứ giả cầu vồng"], ["Pan", "🎶", "Thần đồng nội"], ["Eros", "💘", "Thần tình ái"], ["Helios", "☀️", "Thần mặt trời"], ["Selene", "🌙", "Nữ thần mặt trăng"]],
+  A: [["Athena", "🦉", "Nữ thần trí tuệ"], ["Apollo", "🎻", "Thần ánh sáng & thi ca"], ["Artemis", "🏹", "Nữ thần săn bắn"], ["Hermes", "🪽", "Sứ giả thần tốc"], ["Hephaestus", "🔨", "Thần rèn lửa thiêng"], ["Dionysus", "🍇", "Thần rượu nho"], ["Ares", "⚔️", "Thần chiến tranh"], ["Aphrodite", "🌹", "Nữ thần sắc đẹp"]],
+  S: [["Zeus", "⚡", "Vua các vị thần"], ["Poseidon", "🔱", "Chúa tể đại dương"], ["Hades", "💀", "Vua âm phủ"], ["Hera", "👑", "Nữ hoàng Olympus"], ["Demeter", "🌾", "Nữ thần mùa màng"]],
+  SS: [["Cronus", "⏳", "Titan thời gian"], ["Atlas", "🌍", "Titan vác bầu trời"], ["Prometheus", "🔥", "Kẻ trộm lửa thiêng"], ["Hyperion", "🌅", "Titan ánh sáng"], ["Rhea", "🦁", "Mẹ các vị thần"]],
+  SSS: [["Chaos", "🌌", "Khởi nguyên vạn vật"], ["Nyx", "🌑", "Nữ thần bóng đêm"], ["Gaia", "🌏", "Mẹ đất vĩnh hằng"], ["Uranus", "🌠", "Bầu trời nguyên thủy"], ["Aether", "✨", "Ánh sáng thượng giới"]],
+};
+
+const MAX_STARS = 5;
+
+function hashCode(str) {
+  let h = 0;
+  for (const ch of String(str)) h = (h * 31 + ch.codePointAt(0)) | 0;
+  return Math.abs(h);
+}
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function patronFor(w) {
+  const pool = PATRONS[w.rarity] || PATRONS.C;
+  return pool[hashCode(w.term) % pool.length];
+}
+
+// Chòm sao riêng cho từng từ — sinh từ hash nên mỗi từ một hình, không đổi giữa các lần xem.
+function constellationSVG(term) {
+  const rnd = mulberry32(hashCode(term));
+  const n = 6 + Math.floor(rnd() * 4);
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push([8 + rnd() * 84, 12 + rnd() * 50]);
+  let lines = "";
+  for (let i = 1; i < n; i++) {
+    lines += `<line x1="${pts[i - 1][0].toFixed(1)}" y1="${pts[i - 1][1].toFixed(1)}" x2="${pts[i][0].toFixed(1)}" y2="${pts[i][1].toFixed(1)}"/>`;
+  }
+  const a = Math.floor(rnd() * (n - 2));
+  const b = n - 1 - Math.floor(rnd() * 2);
+  if (a !== b) lines += `<line x1="${pts[a][0].toFixed(1)}" y1="${pts[a][1].toFixed(1)}" x2="${pts[b][0].toFixed(1)}" y2="${pts[b][1].toFixed(1)}"/>`;
+  const alpha = Math.floor(rnd() * n);
+  let stars = "";
+  pts.forEach((p, i) => {
+    const r = i === alpha ? 2.3 : 0.9 + rnd() * 1.1;
+    stars += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(r * 2.6).toFixed(1)}" class="halo"/>`;
+    stars += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${r.toFixed(1)}" class="star"/>`;
+  });
+  return `<svg class="const" viewBox="0 0 100 70" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${lines}${stars}</svg>`;
+}
+
+function starsHTML(w) {
+  if (!w.owned) return "";
+  const filled = "★".repeat(Math.min(w.stars, MAX_STARS));
+  const empty = "★".repeat(Math.max(0, MAX_STARS - w.stars));
+  const dupes = w.dupes ? `<span class="dupes">×${w.dupes}</span>` : "";
+  return `<div class="tcg-stars">${filled}<span class="dim">${empty}</span>${dupes}</div>`;
+}
+
+function powerOf(w) {
+  const base = { D: 20, C: 40, B: 80, A: 150, S: 280, SS: 480, SSS: 800 }[w.rarity] || 40;
+  return Math.round(base * (1 + 0.25 * Math.max(0, w.stars - 1)));
+}
+
+function cardHTML(w, actions = "", opts = {}) {
+  if (opts.locked) {
+    return `
+    <div class="tcg locked rarity-${w.rarity}" data-id="${w.id}">
+      <div class="tcg-frame">
+        <div class="tcg-top"><span class="tcg-rarity">◆ ${w.rarity}</span><span class="tcg-lock">🔒</span></div>
+        <div class="tcg-art">${constellationSVG(w.term)}<span class="tcg-patron-name">? ? ?</span></div>
+        <div class="tcg-name">???</div>
+        <div class="tcg-ipa">Mở pack để thu phục</div>
+      </div>
+    </div>`;
+  }
+  const p = patronFor(w);
   const colls = (w.collocations || []).slice(0, 2).map((c) => `<span class="chip">${esc(c)}</span>`).join("");
-  const glyph = (w.term || "?").trim().charAt(0).toUpperCase();
   return `
-    <div class="tcg rarity-${w.rarity}">
+    <div class="tcg rarity-${w.rarity} ${w.stars >= MAX_STARS ? "ascended" : ""}" data-id="${w.id}">
       <div class="tcg-frame">
         <div class="tcg-top">
           <span class="tcg-rarity">◆ ${w.rarity}</span>
           ${w.is_gem ? `<span class="tcg-gemicon">💎</span>` : ""}
         </div>
-        <div class="tcg-art"><span class="tcg-glyph">${esc(glyph)}</span></div>
+        <div class="tcg-art">
+          ${constellationSVG(w.term)}
+          <span class="tcg-patron-icon" title="${esc(p[0])} — ${esc(p[2])}">${p[1]}</span>
+          <span class="tcg-patron-name">${esc(p[0])}</span>
+        </div>
         <div class="tcg-name">${esc(w.term)}</div>
         <div class="tcg-ipa">${esc(w.ipa)}${w.pos ? ` · ${esc(w.pos)}` : ""}</div>
+        ${starsHTML(w)}
         ${w.meaning ? `<div class="tcg-meaning">${esc(w.meaning)}</div>` : ""}
         <div class="tcg-meta">
           ${w.topic ? `<span class="chip">${esc(w.topic)}</span>` : ""}
@@ -132,6 +221,7 @@ function show(name) {
     .then(() => {
       void main.offsetWidth; // restart CSS animation
       main.classList.add("anim");
+      runCountUps(main);
     })
     .catch((err) => {
       main.innerHTML = `<div class="empty">⚠️ ${esc(err.message)}</div>`;
@@ -170,14 +260,14 @@ views.dashboard = async () => {
     <div class="page-sub">Học đều mỗi ngày — đường cong lãng quên không chờ ai cả 😉</div>
     ${llmWarn}
     <div class="tiles mb">
-      <div class="tile"><div class="t-label">🧠 Đến hạn ôn</div><div class="t-value">${d.stats.due}</div>
+      <div class="tile"><div class="t-label">🧠 Đến hạn ôn</div><div class="t-value"><span data-countup="${d.stats.due}">0</span></div>
         <div class="t-sub">${d.today.reviews} lượt ôn hôm nay</div></div>
-      <div class="tile"><div class="t-label">🔥 Streak</div><div class="t-value">${d.stats.streak} <small>ngày</small></div></div>
+      <div class="tile"><div class="t-label">🔥 Streak</div><div class="t-value"><span data-countup="${d.stats.streak}">0</span> <small>ngày</small></div></div>
       <div class="tile"><div class="t-label">⭐ Level ${lv.level}</div>
-        <div class="t-value">${lv.xp} <small>XP</small></div>
+        <div class="t-value"><span data-countup="${lv.xp}">0</span> <small>XP</small></div>
         <div class="xpbar"><div style="width:${xpPct}%"></div></div></div>
       <div class="tile"><div class="t-label">🃏 Bộ sưu tập</div>
-        <div class="t-value">${d.stats.owned_cards}<small>/${d.stats.total_words}</small></div>
+        <div class="t-value"><span data-countup="${d.stats.owned_cards}">0</span><small>/${d.stats.total_words}</small></div>
         <div class="t-sub">thẻ đã sở hữu</div></div>
     </div>
     <div class="row">
@@ -244,6 +334,7 @@ function packHTML(p) {
 function bindChallengeClaims() {
   $$(".c-claim-btn").forEach((btn) => btn.addEventListener("click", () => busy(btn, async () => {
     const res = await api(`/api/challenges/${btn.dataset.code}/claim`, { method: "POST" });
+    SFX.play("claim");
     toast(`🎁 Nhận được ${res.tier_vi}!`, "ok");
     show(currentView);
   })));
@@ -270,6 +361,7 @@ function openPackFlow(packId, tier) {
     const b = e.currentTarget;
     if (b.disabled) return;
     b.disabled = true;
+    SFX.play("shake");
     $("#pv").classList.add("opening");
     try {
       // gọi API song song với màn rung pack cho đủ độ hồi hộp
@@ -277,6 +369,7 @@ function openPackFlow(packId, tier) {
         api(`/api/packs/${packId}/open`, { method: "POST" }),
         wait(1000),
       ]);
+      SFX.play("burst");
       const flash = document.createElement("div");
       flash.className = "flash-overlay";
       document.body.appendChild(flash);
@@ -290,18 +383,116 @@ function openPackFlow(packId, tier) {
 }
 
 function showReveal(res) {
+  let note = "";
+  if (res.duplicate) {
+    note = `<div class="rv-note">🔁 Thẻ trùng! Bản sao: ×${res.card.dupes} — bấm vào thẻ trong Bộ sưu tập để GỘP nâng ★</div>`;
+  } else if (res.generated) {
+    note = `<div class="rv-note">✨ Từ mới toanh — AI vừa rèn riêng cho bạn, đã vào lịch học!</div>`;
+  }
   const m = modal(`
     <div class="reveal-stage rarity-${res.rarity}">
       <div class="rv-rays"></div>
-      <div class="rv-rarity-banner">${res.rarity}</div>
+      <div class="rv-rarity-banner">${res.duplicate ? "TRÙNG ×" + res.card.dupes : res.rarity}</div>
       ${cardHTML(res.card)}
-      ${res.generated ? `<div class="rv-note">✨ Từ mới toanh — AI vừa rèn riêng cho bạn, đã vào lịch học!</div>` : ""}
+      ${note}
       <div class="rv-actions">
         <button class="btn primary" onclick="closeModal(); show(currentView);">Tuyệt! ✨</button>
       </div>
     </div>`);
   spawnSparks($(".reveal-stage", m), res.rarity);
+  SFX.reveal(res.rarity, res.duplicate);
+  setTimeout(() => TTS.speak(res.card.term), 800); // đọc từ sau fanfare
 }
+
+/* ---------------- chi tiết thẻ ---------------- */
+
+async function openCardDetail(id) {
+  let data;
+  try {
+    data = await api(`/api/words/${id}`);
+  } catch (err) {
+    toast(err.message, "err");
+    return;
+  }
+  const w = data.word;
+  const p = patronFor(w);
+  const cost = w.stars;
+  const canUpgrade = w.owned && w.stars < MAX_STARS && w.dupes >= cost;
+  const colls = (w.collocations || []).map((c) => `<span class="chip">${esc(c)}</span>`).join(" ");
+  modal(`
+    <div class="detail rarity-${w.rarity}">
+      <div class="detail-grid">
+        <div class="detail-card">${cardHTML(w)}</div>
+        <div class="detail-info">
+          <div class="d-patron">${p[1]} <b>${esc(p[0])}</b> · ${esc(p[2])}</div>
+          <div class="d-block">
+            <button class="btn speak-btn" data-say="${esc(w.term)}">🔊 Nghe từ</button>
+            ${w.example ? ` <button class="btn ghost speak-btn" data-say="${esc(w.example)}" data-rate="0.95">🗣️ Nghe ví dụ</button>` : ""}
+          </div>
+          ${w.owned ? `<div class="d-power">⚔️ Sức mạnh: <b>${powerOf(w)}</b>${w.stars >= MAX_STARS ? ` <span class="asc">THĂNG HOA</span>` : ""}</div>` : ""}
+          ${w.example ? `
+          <div class="d-block"><div class="d-label">Ví dụ</div>
+            <div class="d-example">"${esc(w.example)}"</div>
+            ${w.example_vi ? `<div class="d-sub">${esc(w.example_vi)}</div>` : ""}
+          </div>` : ""}
+          ${colls ? `<div class="d-block"><div class="d-label">Collocations</div>${colls}</div>` : ""}
+          <div class="d-block"><div class="d-label">Trí nhớ · đường cong lãng quên</div>
+            <div class="pbar"><div style="width:${data.srs.retention_now}%"></div></div>
+            <div class="d-sub">còn nhớ ~${data.srs.retention_now}% · ôn lại: ${dueLabel(w.due_at)} · đã ôn ${w.repetitions} lần${w.lapses ? ` · quên ${w.lapses} lần` : ""}</div>
+          </div>
+          ${w.owned ? `
+          <div class="d-block"><div class="d-label">Nâng sao</div>
+            <div class="d-stars">${starsHTML(w) || ""}</div>
+            ${w.stars < MAX_STARS
+              ? `<button class="btn primary mt" id="d-upgrade" ${canUpgrade ? "" : "disabled"}>🔮 Gộp ${cost} bản sao → ${w.stars + 1}★</button>
+                 ${canUpgrade ? "" : `<div class="d-sub" style="margin-top:6px;">cần ${cost} bản sao, đang có ×${w.dupes} — mở pack để săn thêm</div>`}`
+              : `<div class="d-sub">Thẻ đã THĂNG HOA — cấp sao tối đa ✨</div>`}
+          </div>` : `<div class="d-block d-sub">🔒 Chưa sở hữu thẻ này — hoàn thành thử thách để nhận pack.</div>`}
+        </div>
+      </div>
+      <div style="text-align: right; margin-top: 14px;">
+        <button class="btn" onclick="closeModal()">Đóng</button>
+      </div>
+    </div>`);
+  $("#d-upgrade")?.addEventListener("click", (e) => busy(e.currentTarget, async () => {
+    const res = await api(`/api/cards/${w.id}/upgrade`, { method: "POST" });
+    SFX.play("upgrade");
+    spawnSparks($(".detail", $("#modal-root")), w.rarity);
+    toast(`⭐ "${res.word.term}" lên ${res.word.stars}★!`, "ok");
+    await wait(650);
+    openCardDetail(w.id);
+  }));
+}
+
+// Nút loa: đọc text trong data-say bằng Web Speech API
+document.addEventListener("click", (e) => {
+  const sp = e.target.closest(".speak-btn");
+  if (!sp) return;
+  const ok = TTS.speak(sp.dataset.say, sp.dataset.rate ? Number(sp.dataset.rate) : undefined);
+  if (!ok) toast("Trình duyệt không hỗ trợ đọc từ (Web Speech API).", "err");
+});
+
+// Blip nhẹ cho mọi nút bấm thường (nút có âm riêng như rate/quiz không nằm trong selector này)
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".speak-btn")) return; // loa có tiếng đọc rồi, khỏi blip
+  if (e.target.closest(".btn, .nav-btn, .subtab, .chip.clickable")) SFX.play("click");
+});
+
+// Click thẻ ở bất kỳ đâu (trừ màn reveal) -> mở chi tiết; thẻ khoá -> nhắc mở pack
+document.addEventListener("click", (e) => {
+  const termEl = e.target.closest(".w-term[data-id]");
+  if (termEl) {
+    openCardDetail(Number(termEl.dataset.id));
+    return;
+  }
+  const tcg = e.target.closest(".tcg[data-id]");
+  if (!tcg || tcg.closest(".reveal-stage") || tcg.closest(".detail")) return;
+  if (tcg.classList.contains("locked")) {
+    toast("🔒 Thẻ chưa sở hữu — hoàn thành thử thách hằng ngày để nhận pack!");
+    return;
+  }
+  openCardDetail(Number(tcg.dataset.id));
+});
 
 function spawnSparks(container, rarity) {
   const colors = rarity === "SSS"
@@ -347,16 +538,16 @@ views.review = async () => {
           <div class="flip-face front">
             <div class="flashcard rarity-${w.rarity}">
               <div><span class="rbadge">${w.rarity}</span> ${w.topic ? `<span class="chip">${esc(w.topic)}</span>` : ""}</div>
-              <div class="f-term">${esc(w.term)}</div>
+              <div class="f-term">${esc(w.term)} <button class="speak-btn f-speak" data-say="${esc(w.term)}" title="Nghe phát âm (P)">🔊</button></div>
               <div class="f-ipa">${esc(w.ipa)} ${w.pos ? "· " + esc(w.pos) : ""}</div>
-              <div class="f-hint">✦ SPACE hoặc bấm vào thẻ để lật ✦</div>
+              <div class="f-hint">✦ SPACE lật thẻ · P nghe phát âm ✦</div>
             </div>
           </div>
           <div class="flip-face back">
             <div class="flashcard rarity-${w.rarity}">
-              <div class="f-term" style="font-size: 1.4rem;">${esc(w.term)}</div>
+              <div class="f-term" style="font-size: 1.4rem;">${esc(w.term)} <button class="speak-btn f-speak" data-say="${esc(w.term)}" title="Nghe phát âm (P)">🔊</button></div>
               <div class="f-meaning">${esc(w.meaning)}</div>
-              ${w.example ? `<div class="f-example">"${esc(w.example)}"</div>` : ""}
+              ${w.example ? `<div class="f-example">"${esc(w.example)}" <button class="speak-btn" data-say="${esc(w.example)}" data-rate="0.95" title="Nghe câu ví dụ">🗣️</button></div>` : ""}
               ${w.example_vi ? `<div class="f-example-vi">${esc(w.example_vi)}</div>` : ""}
               ${(w.collocations || []).length ? `<div class="f-colls">${w.collocations.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</div>` : ""}
             </div>
@@ -373,11 +564,17 @@ views.review = async () => {
     </div>`;
 
   const reveal = () => {
+    SFX.play("flip");
     $("#flip-inner").classList.add("flipped");
     $("#rates").hidden = false;
+    TTS.speak(w.term); // tự đọc từ khi lật — luyện tai luôn
   };
-  $("#flash").addEventListener("click", () => { if ($("#rates").hidden) reveal(); });
+  $("#flash").addEventListener("click", (e) => {
+    if (e.target.closest(".speak-btn")) return; // bấm loa thì không lật thẻ
+    if ($("#rates").hidden) reveal();
+  });
   $$(".rate-btn").forEach((btn) => btn.addEventListener("click", () => busy(btn, async () => {
+    SFX.play(`rate${btn.dataset.rating}`);
     await api(`/api/review/${w.id}`, { method: "POST", body: { rating: Number(btn.dataset.rating) } });
     refreshDueBadge();
     views.review();
@@ -386,6 +583,7 @@ views.review = async () => {
   document.onkeydown = (e) => {
     if (currentView !== "review") { document.onkeydown = null; return; }
     if (e.code === "Space" && $("#rates")?.hidden) { e.preventDefault(); reveal(); }
+    if (e.code === "KeyP") TTS.speak(w.term);
     if (["1", "2", "3", "4"].includes(e.key) && !$("#rates")?.hidden) {
       $$(".rate-btn")[Number(e.key) - 1]?.click();
     }
@@ -412,10 +610,11 @@ views.quiz = async () => {
     <div class="quiz-wrap">
       <div class="card">
         <div style="color: var(--muted); font-size: 0.8rem;">${label}</div>
-        <div style="font-size: 1.3rem; font-weight: 700; margin-top: 8px;">${esc(q.prompt)} ${q.mode === "term_to_meaning" && q.ipa ? `<span class="v-ipa">${esc(q.ipa)}</span>` : ""}</div>
+        <div style="font-size: 1.3rem; font-weight: 700; margin-top: 8px;">${esc(q.prompt)} ${q.mode === "term_to_meaning" && q.ipa ? `<span class="v-ipa">${esc(q.ipa)}</span>` : ""} ${q.mode === "term_to_meaning" ? `<button class="speak-btn" data-say="${esc(q.prompt)}" title="Nghe phát âm">🔊</button>` : ""}</div>
         <div id="options">${q.options.map((o) => `<button class="q-option" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>
         <div id="q-after" class="mt" hidden>
-          ${q.example ? `<div style="color: var(--muted); font-style: italic; font-size: 0.88rem;">Ví dụ: ${esc(q.example)}</div>` : ""}
+          ${q.example ? `<div style="color: var(--muted); font-style: italic; font-size: 0.88rem;">Ví dụ: ${esc(q.example)} <button class="speak-btn" data-say="${esc(q.example)}" data-rate="0.95" title="Nghe câu ví dụ">🗣️</button></div>` : ""}
+          <button class="btn ghost mt speak-btn" data-say="${esc(q.mode === "term_to_meaning" ? q.prompt : q.correct)}">🔊 Nghe từ</button>
           <button class="btn primary mt" id="q-next">Câu tiếp →</button>
         </div>
       </div>
@@ -432,6 +631,7 @@ views.quiz = async () => {
       });
       quizScore.total += 1;
       if (res.is_correct) quizScore.ok += 1;
+      SFX.play(res.is_correct ? "correct" : "wrong");
       $$(".q-option").forEach((b) => {
         if (b.dataset.v === q.correct) b.classList.add("correct");
         else if (b === btn) b.classList.add("wrong");
@@ -563,12 +763,13 @@ function wordRowHTML(w) {
     <div class="word-row rarity-${w.rarity}">
       <span class="rbadge">${w.rarity}</span>
       <div class="w-main">
-        <span class="w-term">${esc(w.term)}</span><span class="w-ipa">${esc(w.ipa)}</span>
+        <span class="w-term" data-id="${w.id}" title="Xem chi tiết thẻ">${esc(w.term)}</span><span class="w-ipa">${esc(w.ipa)}</span>
         ${w.owned ? " 🃏" : ""}${w.is_gem ? " 💎" : ""}
         <div class="w-meaning">${esc(w.meaning)}</div>
         ${w.example ? `<div class="w-example">"${esc(w.example)}"</div>` : ""}
       </div>
       <div class="w-side">
+        <button class="speak-btn" data-say="${esc(w.term)}" title="Nghe phát âm">🔊</button>
         ${w.topic ? `<span class="chip">${esc(w.topic)}</span>` : ""}
         <div class="w-due">ôn: ${dueLabel(w.due_at)}</div>
         <button class="btn ghost danger w-del" data-id="${w.id}" style="font-size: 0.72rem; padding: 2px 8px; margin-top: 4px;">xoá</button>
@@ -804,14 +1005,20 @@ views.collection = async () => {
   const summary = RARITY_ORDER.map((r) => {
     const s = byRarity[r] || { total: 0, owned: 0 };
     return `<div class="rs-chip rarity-${r}"><div class="rs-r">${r}</div><div class="rs-n">${s.owned || 0}/${s.total || 0}</div></div>`;
-  }).join("");
+  }).join("") + `<div class="rs-chip rarity-S"><div class="rs-r">★</div><div class="rs-n">${col.total_stars || 0} sao</div></div>`;
 
+  // Thẻ sở hữu trước, thẻ chưa có hiện silhouette ??? phía sau
   const groups = RARITY_ORDER.map((r) => {
     const cards = col.cards.filter((c) => c.rarity === r);
     if (!cards.length) return "";
+    const owned = cards.filter((c) => c.owned);
+    const locked = cards.filter((c) => !c.owned);
     return `
-      <div class="rarity-section-title rarity-${r}">${r} · ${cards.length} thẻ</div>
-      <div class="cards-grid">${cards.map((c) => cardHTML(c)).join("")}</div>`;
+      <div class="rarity-section-title rarity-${r}">${r} · ${owned.length}/${cards.length} thẻ</div>
+      <div class="cards-grid">
+        ${owned.map((c) => cardHTML(c)).join("")}
+        ${locked.map((c) => cardHTML(c, "", { locked: true })).join("")}
+      </div>`;
   }).join("");
 
   const packs = ch.packs.length
@@ -820,14 +1027,27 @@ views.collection = async () => {
 
   main.innerHTML = `
     <div class="page-title">Bộ sưu tập</div>
-    <div class="page-sub">Mỗi từ là một thẻ bài. Mở pack để sở hữu thẻ — thẻ hiếm là từ "đắt giá" giúp ăn điểm IELTS.</div>
+    <div class="page-sub">Mỗi từ là một thẻ bài có chòm sao và thần hộ mệnh riêng. Mở pack để thu phục thẻ — trùng thẻ thì gộp nâng ★.</div>
     <div class="rarity-summary">${summary}</div>
-    <div class="card mb">
-      <b>🎁 Pack chưa mở</b>
-      <div class="pack-shelf mt">${packs}</div>
+    <div class="row mb">
+      <div class="card grow">
+        <b>🎁 Pack chưa mở</b>
+        <div class="pack-shelf mt">${packs}</div>
+      </div>
+      <div class="card" style="flex: 0 0 250px; display: flex; flex-direction: column; justify-content: center; gap: 10px;">
+        <b>🗺️ Mở rộng kho thẻ</b>
+        <div style="color: var(--muted); font-size: 0.8rem;">AI sinh ~15 từ mới trên 3 chủ đề IELTS — thêm thẻ mới để săn trong pack.</div>
+        <button class="btn primary" id="expand-btn">✨ Mở rộng (+15 thẻ)</button>
+      </div>
     </div>
-    ${col.cards.length ? groups : `<div class="empty">Chưa sở hữu thẻ nào. Hoàn thành thử thách → nhận pack → mở thẻ!</div>`}`;
+    ${col.cards.length ? groups : `<div class="empty">Chưa có thẻ nào — bấm "Mở rộng kho thẻ" hoặc thêm từ ở tab Từ vựng!</div>`}`;
   bindPackOpens();
+  const expandBtn = $("#expand-btn");
+  expandBtn.addEventListener("click", () => busy(expandBtn, async () => {
+    const res = await api("/api/collection/expand", { method: "POST", body: { count: 15 } });
+    toast(`✨ +${res.added} thẻ mới từ: ${res.topics.join(", ")}`, "ok");
+    views.collection();
+  }));
 };
 
 /* ---------------- stats ---------------- */
@@ -839,12 +1059,12 @@ views.stats = async () => {
     <div class="page-title">Thống kê</div>
     <div class="page-sub">Trí nhớ và độ rộng vốn từ của bạn, nhìn bằng số liệu.</div>
     <div class="tiles mb">
-      <div class="tile"><div class="t-label">📚 Tổng số từ</div><div class="t-value">${s.total_words}</div></div>
-      <div class="tile"><div class="t-label">🧠 Đã nhớ chắc</div><div class="t-value">${s.mastered}</div><div class="t-sub">interval ≥ 21 ngày</div></div>
-      <div class="tile"><div class="t-label">🔁 Tổng lượt ôn</div><div class="t-value">${s.reviews}</div></div>
-      <div class="tile"><div class="t-label">✍️ Bài viết</div><div class="t-value">${s.writings}</div></div>
+      <div class="tile"><div class="t-label">📚 Tổng số từ</div><div class="t-value"><span data-countup="${s.total_words}">0</span></div></div>
+      <div class="tile"><div class="t-label">🧠 Đã nhớ chắc</div><div class="t-value"><span data-countup="${s.mastered}">0</span></div><div class="t-sub">interval ≥ 21 ngày</div></div>
+      <div class="tile"><div class="t-label">🔁 Tổng lượt ôn</div><div class="t-value"><span data-countup="${s.reviews}">0</span></div></div>
+      <div class="tile"><div class="t-label">✍️ Bài viết</div><div class="t-value"><span data-countup="${s.writings}">0</span></div></div>
       <div class="tile"><div class="t-label">🎯 Band gần đây</div><div class="t-value">${s.recent_avg_band ?? "–"}</div><div class="t-sub">TB 5 bài mới nhất</div></div>
-      <div class="tile"><div class="t-label">🔥 Streak</div><div class="t-value">${s.streak} <small>ngày</small></div></div>
+      <div class="tile"><div class="t-label">🔥 Streak</div><div class="t-value"><span data-countup="${s.streak}">0</span> <small>ngày</small></div></div>
     </div>
     <div class="card viz-root">
       <b>Hoạt động 14 ngày</b>
@@ -1022,8 +1242,62 @@ views.settings = async () => {
 
 /* ---------------- boot ---------------- */
 
+/* ---- hiệu ứng con trỏ kiểu ReactBits: spotlight + tilt 3D ---- */
+
+document.addEventListener("mousemove", (e) => {
+  const spot = e.target.closest(".card, .tile");
+  if (spot) {
+    const r = spot.getBoundingClientRect();
+    spot.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    spot.style.setProperty("--my", `${e.clientY - r.top}px`);
+  }
+  const tcg = e.target.closest(".tcg");
+  if (tcg && !tcg.closest(".reveal-stage")) {
+    const r = tcg.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    tcg.style.transform = `perspective(700px) rotateY(${(px * 14).toFixed(2)}deg) rotateX(${(-py * 12).toFixed(2)}deg) translateY(-4px)`;
+    tcg.style.setProperty("--gx", `${((px + 0.5) * 100).toFixed(1)}%`);
+    tcg.style.setProperty("--gy", `${((py + 0.5) * 100).toFixed(1)}%`);
+  }
+});
+
+document.addEventListener("mouseout", (e) => {
+  const tcg = e.target.closest(".tcg");
+  if (tcg && !(e.relatedTarget && tcg.contains(e.relatedTarget))) {
+    tcg.style.transform = "";
+    tcg.style.removeProperty("--gx");
+    tcg.style.removeProperty("--gy");
+  }
+});
+
+/* ---- count-up cho số liệu (kiểu ReactBits CountUp) ---- */
+
+function runCountUps(root = document) {
+  $$("[data-countup]", root).forEach((el) => {
+    const target = Number(el.dataset.countup);
+    delete el.dataset.countup; // chỉ chạy một lần
+    if (!Number.isFinite(target)) return;
+    const dur = 900;
+    const t0 = performance.now();
+    const tick = (t) => {
+      const k = Math.min(1, (t - t0) / dur);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
 window.show = show;
 window.closeModal = closeModal;
+
+// nút bật/tắt âm thanh (trạng thái lưu localStorage)
+const sfxBtn = $("#sfx-toggle");
+const syncSfxBtn = () => { sfxBtn.textContent = SFX.enabled ? "🔊 Âm thanh" : "🔇 Đã tắt tiếng"; };
+sfxBtn.addEventListener("click", () => { SFX.toggle(); syncSfxBtn(); });
+syncSfxBtn();
+
 window.addEventListener("hashchange", () => {
   const name = location.hash.slice(1);
   if (name !== currentView) show(name);

@@ -5,7 +5,7 @@ EPux là web app local giúp bạn học từ vựng + luyện Writing cho IELTS
 - **Tự động mở rộng vốn từ**: AI đề xuất chủ đề hay gặp trong IELTS, sinh thẻ từ vựng đầy đủ (nghĩa, IPA, ví dụ, collocations, band CEFR) và tránh trùng từ bạn đã có.
 - **Ôn tập theo đường cong lãng quên**: thẻ mới ôn dày (10 phút → 1 giờ → 8 giờ), nhớ tốt thì giãn dần theo stability — hợp với người online thường xuyên.
 - **Writing**: AI ra đề (diễn tả hoạt động thường ngày hoặc IELTS Task 2), chấm band theo 4 tiêu chí, chỉ từng lỗi, viết lại bản band cao hơn, gợi ý từ "nâng band" để thêm thẳng vào bộ học. Kèm thư viện **mẫu câu** theo chủ đề, có chấm câu bạn tự đặt.
-- **Sưu tập thẻ bài**: mỗi từ là một card có độ hiếm **D → C → B → A → S → SS → SSS**. Hoàn thành thử thách mỗi ngày → nhận pack (Đồng/Bạc/Vàng) → mở pack để sở hữu thẻ. Nếu roll ra độ hiếm chưa có trong kho, AI sinh từ mới đúng độ khó đó — gacha cũng là học.
+- **Sưu tập thẻ bài**: mỗi từ là một card có độ hiếm **D → C → B → A → S → SS → SSS**, với **chòm sao riêng** (sinh từ chính từ đó) và **thần hộ mệnh Hy Lạp** theo bậc (Sinh vật → Anh hùng → Bán thần → Olympian → Zeus/Poseidon/Hades → Titan → Nguyên thủy). Hoàn thành thử thách mỗi ngày → nhận pack (Đồng/Bạc/Vàng) → mở pack: có thể ra thẻ mới, **thẻ trùng** (gộp bản sao để nâng **1-5★**, 5★ = Thăng Hoa), hoặc AI rèn từ mới đúng độ hiếm đã roll — gacha cũng là học. Bấm vào thẻ để xem chi tiết: lore, sức mạnh, % trí nhớ theo đường cong lãng quên, nâng sao.
 - **Quiz trắc nghiệm**, thống kê, streak, XP/level, nhắc học Windows.
 
 Dữ liệu SQLite local (dữ liệu từ bản cũ được giữ nguyên và tự nâng cấp schema). Code bản TUI cũ nằm trong `legacy/`.
