@@ -29,7 +29,7 @@ Tạo file `.env` ở thư mục dự án (xem `.env.example`):
 AZURE_OPENAI_API_KEY=...
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT=gpt-4o
-AZURE_OPENAI_API_VERSION=2024-02-15-preview
+AZURE_OPENAI_API_VERSION=...
 ```
 
 Hoặc dùng bất kỳ API OpenAI-compatible: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`.
