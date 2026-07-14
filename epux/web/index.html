@@ -5,28 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EPux — Vocabulary & Writing Coach</title>
   <link rel="stylesheet" href="/static/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a07d28' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'/%3E%3Cpath d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'/%3E%3C/svg%3E">
 </head>
 <body>
-  <div class="aurora"><i></i><i></i><i></i></div>
+  <!-- Bộ icon dùng chung: một nét vẽ thống nhất (stroke, bo tròn) cho toàn app -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="ic-temple" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6"/><path d="M3 10h18"/><path d="M6 13v5M10 13v5M14 13v5M18 13v5"/><path d="M4 18h16M3 21h18"/></symbol>
+    <symbol id="ic-hourglass" viewBox="0 0 24 24"><path d="M7 3h10M7 21h10"/><path d="M8 3v3.2c0 2.4 2.7 3.1 2.7 5.8S8 15.4 8 17.8V21"/><path d="M16 3v3.2c0 2.4-2.7 3.1-2.7 5.8s2.7 3.4 2.7 5.8V21"/></symbol>
+    <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+    <symbol id="ic-quill" viewBox="0 0 24 24"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/></symbol>
+    <symbol id="ic-cards" viewBox="0 0 24 24"><rect x="3" y="6.5" width="11.5" height="14.5" rx="2"/><path d="M9 6.5V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v11.5a2 2 0 0 1-2 2h-1.5"/></symbol>
+    <symbol id="ic-chart" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></symbol>
+    <symbol id="ic-speaker" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></symbol>
+    <symbol id="ic-speaker-off" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6M17 9l6 6"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="ic-sparkle" viewBox="0 0 24 24"><path d="M11 3l1.7 4.8L17.5 9.5l-4.8 1.7L11 16l-1.7-4.8L4.5 9.5l4.8-1.7z"/><path d="M18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+    <symbol id="ic-gem" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M2 9h20"/><path d="M12 21 8 9l4-6 4 6z"/></symbol>
+    <symbol id="ic-gift" viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></symbol>
+    <symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+    <symbol id="ic-star" viewBox="0 0 24 24"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></symbol>
+    <symbol id="ic-flame" viewBox="0 0 24 24"><path d="M12 2.5c1.6 3.6 5.5 5.6 5.5 10a5.5 5.5 0 0 1-11 0c0-2.6 1.2-4.3 2.8-6.5.9 1.5 1.7 2.2 2.8 2.9-.6-2.3-.7-4.2-.1-6.4z"/></symbol>
+    <symbol id="ic-check-circle" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></symbol>
+    <symbol id="ic-x-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+    <symbol id="ic-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 1 3.6 10.8c-.7.5-1.1 1.3-1.1 2.2H9.5c0-.9-.4-1.7-1.1-2.2A6 6 0 0 1 12 3z"/></symbol>
+    <symbol id="ic-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+    <symbol id="ic-dice" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/></symbol>
+    <symbol id="ic-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5"/><path d="M7 8h10v3a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+    <symbol id="ic-layers" viewBox="0 0 24 24"><path d="m12 2-10 5 10 5 10-5z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></symbol>
+    <symbol id="ic-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="ic-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  </svg>
+
   <div class="app">
     <nav class="sidebar">
-      <div class="logo">EP<span>ux</span><small>IELTS vocab &amp; writing</small></div>
-      <button class="nav-btn" data-view="dashboard">🏠 Hôm nay</button>
-      <button class="nav-btn" data-view="review">🧠 Ôn tập <span class="badge" id="due-badge" hidden></span></button>
-      <button class="nav-btn" data-view="quiz">⚡ Quiz</button>
-      <button class="nav-btn" data-view="words">📚 Từ vựng</button>
-      <button class="nav-btn" data-view="writing">✍️ Writing</button>
-      <button class="nav-btn" data-view="collection">🃏 Bộ sưu tập</button>
-      <button class="nav-btn" data-view="stats">📈 Thống kê</button>
-      <button class="nav-btn" data-view="settings">⚙️ Cài đặt</button>
-      <button class="nav-btn" id="sfx-toggle" style="margin-top: auto;">🔊 Âm thanh</button>
+      <div class="logo">EP<span>ux</span><small>IELTS &amp; TOEIC vocab</small></div>
+      <div id="user-info" style="display: none; padding: 10px; margin-bottom: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center;">
+        <span id="username-display" style="font-weight: bold; color: var(--gold);"></span>
+        <button id="logout-btn" style="background: none; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; margin-top: 5px; width: 100%; padding: 4px; border-radius: 4px; font-size: 12px;">Đăng xuất</button>
+      </div>
+      <button class="nav-btn" data-view="dashboard"><svg class="ic"><use href="#ic-temple"/></svg> Hôm nay</button>
+      <button class="nav-btn" data-view="review"><svg class="ic"><use href="#ic-hourglass"/></svg> Ôn tập <span class="badge" id="due-badge" hidden></span></button>
+      <button class="nav-btn" data-view="quiz"><svg class="ic"><use href="#ic-bolt"/></svg> Quiz</button>
+      <button class="nav-btn" data-view="words"><svg class="ic"><use href="#ic-book"/></svg> Từ vựng</button>
+      <button class="nav-btn" data-view="writing"><svg class="ic"><use href="#ic-quill"/></svg> Writing</button>
+      <button class="nav-btn" data-view="collection"><svg class="ic"><use href="#ic-cards"/></svg> Bộ sưu tập</button>
+      <button class="nav-btn" data-view="arena"><svg class="ic"><use href="#ic-target"/></svg> Đấu Trường</button>
+      <button class="nav-btn" data-view="stats"><svg class="ic"><use href="#ic-chart"/></svg> Thống kê</button>
+      <button class="nav-btn" data-view="settings"><svg class="ic"><use href="#ic-sliders"/></svg> Cài đặt</button>
+      <button class="nav-btn" id="sfx-toggle" style="margin-top: auto;"><svg class="ic"><use href="#ic-speaker"/></svg> Âm thanh</button>
     </nav>
     <main class="main" id="main"></main>
+    <div id="auth-screen" class="auth-screen" style="display: none;">
+      <div class="auth-box">
+        <h2>Chào mừng đến EPux</h2>
+        <input type="text" id="auth-username" placeholder="Tên đăng nhập" />
+        <input type="password" id="auth-password" placeholder="Mật khẩu" />
+        <div class="auth-actions">
+          <button id="auth-login-btn" class="btn btn-primary">Đăng nhập</button>
+          <button id="auth-register-btn" class="btn btn-secondary">Đăng ký mới</button>
+        </div>
+        <div id="auth-error" style="color: var(--rare-s); margin-top: 10px; font-size: 14px;"></div>
+      </div>
+    </div>
   </div>
   <div id="toasts"></div>
   <div id="modal-root"></div>
   <script src="/static/sfx.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>

@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+secret_key
+
+# Personal deploy runner (hard-codes a local absolute path)
+modal_runner.py
 
 # Python
 __pycache__/
