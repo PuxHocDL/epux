@@ -1008,7 +1008,7 @@ table.datatable th { color: var(--muted); font-weight: 600; }
 .p-model-body { margin-top: 10px; line-height: 1.75; color: var(--text); }
 .p-model-body p { margin: 0 0 10px; }
 
-#t1-wc.short { color: var(--bad); font-weight: 700; }
+#t1-wc.short, #t2-wc.short { color: var(--bad); font-weight: 700; }
 
 /* --- figures --- */
 .ch-fig { margin: 16px 0 4px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px; }

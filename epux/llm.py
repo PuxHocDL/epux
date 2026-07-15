@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from . import task1
+from . import task1, task2
 from .config import LLMSettings
 
 
@@ -430,6 +430,74 @@ class LLMClient:
         )
         return self.chat(
             "You are a strict but constructive IELTS examiner marking Writing Task 1.",
+            user,
+            max_tokens=4000,
+        )
+
+    # ------------------------------------------------------------ IELTS Task 2
+
+    def grade_task2(
+        self,
+        prompt: str,
+        essay_type: str,
+        content: str,
+        level: str,
+        target_band: str,
+        word_count: int = 0,
+        model_answer: str | None = None,
+    ) -> dict[str, Any]:
+        model_note = (
+            "A band-9 model answer for this exact task is provided for reference — use it to judge "
+            f"how well the learner addressed the task, not to copy from:\n{model_answer}\n---\n"
+            if model_answer
+            else ""
+        )
+        user = (
+            f"{task2.prompt_knowledge(essay_type)}\n\n"
+            "Grade this IELTS Writing Task 2 essay with the official Task 2 band descriptors "
+            "(0-9, half bands). The first criterion is TASK RESPONSE.\n"
+            f"Task: {prompt}\n---\n"
+            f"{model_note}"
+            f"Learner's essay ({word_count} words — this count is authoritative, do not recount):\n"
+            f"{content}\n---\n"
+            f"Learner level {level}, target band {target_band}. Be honest, not flattering.\n"
+            "Work like a real examiner, in this order (reason silently, output only the final JSON):\n"
+            "1. Task Response first, and be strict: is the writer's POSITION clear and consistent "
+            "(reading only intro + conclusion should reveal it)? No clear/consistent position caps "
+            "Task Response at 5. Are ALL parts of the prompt answered (discuss both views = both "
+            "views AND the writer's own opinion; problem+solution = both; two-part = both questions), "
+            "with roughly balanced space? Are the ideas relevant to THIS task and developed with "
+            "explanation/examples, or just stated? Irrelevant ideas also cap TR at 5. Is it at least "
+            "250 words?\n"
+            "2. Then Coherence & Cohesion (4-paragraph structure, topic sentences, paragraph unity, "
+            "linking words, referencing), Lexical Resource (precision and collocation, not rare "
+            "words), and Grammatical Range & Accuracy — quoting the learner's own words as evidence.\n"
+            "3. Collect EVERY real error — be exhaustive — and classify each one.\n"
+            "4. Decide bands honestly: half bands, no defaulting to 6.0-6.5, criteria may differ by 1.0+.\n"
+            'Return {"overall_band": number, '
+            '"criteria": {"task_response": number, "coherence": number, "lexical_resource": number, "grammar": number}, '
+            '"task2_check": {"clear_position": bool, "position_quote": "câu thể hiện quan điểm bạn '
+            'tìm thấy, hoặc \\"\\" nếu không có", "all_parts_addressed": bool, "ideas_relevant": bool, '
+            '"word_count_ok": bool, "verdict_vi": "1-2 câu: bài này pass/fail ở 4 điểm sống còn trên, vì sao"}, '
+            '"criteria_feedback": {'
+            '"task_response": {"comment_vi": "nhận xét CÓ DẪN CHỨNG trích từ bài", "to_next_band_vi": "việc cụ thể để lên band"}, '
+            '"coherence": {"comment_vi": "...", "to_next_band_vi": "..."}, '
+            '"lexical_resource": {"comment_vi": "...", "to_next_band_vi": "..."}, '
+            '"grammar": {"comment_vi": "...", "to_next_band_vi": "..."}}, '
+            '"summary_vi": "3-4 câu: bài đang ở đâu, điều gì kéo band xuống nhiều nhất", '
+            '"strengths_vi": ["2-3 điểm làm TỐT, trích dẫn cụ thể"], '
+            '"errors": [{"quote": "đoạn sai trích nguyên văn", "fix": "cách viết đúng", '
+            '"type": "grammar|vocab|spelling|coherence|task", '
+            '"explain_vi": "vì sao sai + quy tắc để lần sau không mắc lại"}], '
+            '"improved_version": "the same essay rewritten at ~target band: same 4-paragraph '
+            'structure, clear position, 270-300 words", '
+            '"improved_notes_vi": ["3-4 thay đổi then chốt và vì sao chúng nâng band"], '
+            '"band_up_plan_vi": ["2-3 việc ưu tiên cho bài Task 2 sau"], '
+            '"vocab_upgrades": [{"term": "từ/cụm đắt giá nên dùng", "meaning_vi": "...", "example": "...", '
+            '"replaces_vi": "thay cho cách diễn đạt nào bạn đã dùng"}]}'
+        )
+        return self.chat(
+            "You are a strict but constructive IELTS examiner marking Writing Task 2.",
             user,
             max_tokens=4000,
         )

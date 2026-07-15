@@ -905,12 +905,15 @@ views.writing = async () => {
       <button class="subtab ${writingState.sub === "practice" ? "active" : ""}" data-sub="practice">${ic("quill")} Luyện viết</button>
       <button class="subtab ${writingState.sub === "task1" ? "active" : ""}" data-sub="task1">${ic("chart")} Task 1</button>
       <button class="subtab ${writingState.sub === "t1know" ? "active" : ""}" data-sub="t1know">${ic("bulb")} Tri thức T1</button>
+      <button class="subtab ${writingState.sub === "task2" ? "active" : ""}" data-sub="task2">${ic("pen")} Task 2</button>
+      <button class="subtab ${writingState.sub === "t2know" ? "active" : ""}" data-sub="t2know">${ic("bulb")} Tri thức T2</button>
       <button class="subtab ${writingState.sub === "patterns" ? "active" : ""}" data-sub="patterns">${ic("layers")} Mẫu câu</button>
       <button class="subtab ${writingState.sub === "history" ? "active" : ""}" data-sub="history">${ic("clock")} Lịch sử</button>
     </div>
     <div id="w-body"></div>`;
   $$(".subtab").forEach((b) => b.addEventListener("click", () => {
     if (writingState.sub === "task1" && b.dataset.sub !== "task1") t1Timer(true);
+    if (writingState.sub === "task2" && b.dataset.sub !== "task2") t2Timer(true);
     writingState.sub = b.dataset.sub;
     views.writing();
   }));
@@ -918,6 +921,8 @@ views.writing = async () => {
   if (writingState.sub === "practice") renderWritingPractice(body);
   else if (writingState.sub === "task1") await renderTask1(body);
   else if (writingState.sub === "t1know") await renderTask1Knowledge(body);
+  else if (writingState.sub === "task2") await renderTask2(body);
+  else if (writingState.sub === "t2know") await renderTask2Knowledge(body);
   else if (writingState.sub === "patterns") await renderPatterns(body);
   else await renderWritingHistory(body);
 };
@@ -1480,6 +1485,270 @@ async function renderTask1Knowledge(body) {
     <div class="card">
       <b>${ic("sparkle")} Ngôn ngữ mô tả số liệu</b>
       <div class="kn-lang mt">${lang}</div>
+    </div>`;
+}
+
+/* ---------------- IELTS Task 2 ---------------- */
+
+const task2State = {
+  data: null,
+  mode: "bank",   // bank | ai
+  type: "all",    // bank filter
+  item: null,
+  gen: null,
+  timerId: null,
+  secondsLeft: 40 * 60,
+};
+
+function t2Timer(stop) {
+  if (task2State.timerId) { clearInterval(task2State.timerId); task2State.timerId = null; }
+  if (stop) return;
+  task2State.timerId = setInterval(() => {
+    const el = $("#t2-clock");
+    if (!el) { clearInterval(task2State.timerId); task2State.timerId = null; return; }
+    task2State.secondsLeft = Math.max(0, task2State.secondsLeft - 1);
+    const m = String(Math.floor(task2State.secondsLeft / 60)).padStart(2, "0");
+    const s = String(task2State.secondsLeft % 60).padStart(2, "0");
+    el.textContent = `${m}:${s}`;
+    el.classList.toggle("low", task2State.secondsLeft <= 300);
+    if (task2State.secondsLeft === 0) { clearInterval(task2State.timerId); task2State.timerId = null; }
+  }, 1000);
+}
+
+async function renderTask2(body) {
+  if (!task2State.data) task2State.data = await api("/api/task2/knowledge");
+  const { bank, knowledge } = task2State.data;
+  const typeEntries = Object.entries(knowledge.types);
+  const task = task2State.mode === "bank" ? task2State.item : task2State.gen;
+  const typeKey = task2State.mode === "bank" ? (task?.type) : (task?.essay_type);
+  const tips = typeKey ? (knowledge.type_tips[typeKey] || []).map((t) => `<li>${esc(t)}</li>`).join("") : "";
+
+  body.innerHTML = `
+    <div class="row mb t1-controls">
+      <select id="t2-mode" style="width: 240px;">
+        <option value="bank" ${task2State.mode === "bank" ? "selected" : ""}>Đề thật (12 đề, có bài mẫu band 9)</option>
+        <option value="ai" ${task2State.mode === "ai" ? "selected" : ""}>AI ra đề mới</option>
+      </select>
+      ${task2State.mode === "bank" ? `
+        <select id="t2-type" style="width: 210px;">
+          <option value="all" ${task2State.type === "all" ? "selected" : ""}>Mọi dạng đề</option>
+          ${typeEntries.map(([k, v]) => `<option value="${k}" ${task2State.type === k ? "selected" : ""}>${esc(v.label_vi)}</option>`).join("")}
+        </select>` : ""}
+      <button class="btn primary" id="t2-new">${ic("dice")} Lấy đề</button>
+      ${task ? `<span class="t1-clock" id="t2-clock" title="40 phút như thi thật">40:00</span>` : ""}
+    </div>
+
+    ${tips ? `<details class="card t1-tips mb"><summary>${ic("bulb")} Mẹo cho dạng ${esc(knowledge.types[typeKey].label_vi)}</summary><ul>${tips}</ul></details>` : ""}
+
+    <div id="t2-task">${task ? t2TaskHTML(task) : `<div class="empty">Chọn nguồn đề rồi bấm "Lấy đề".</div>`}</div>
+
+    <div class="card mt" ${task ? "" : "hidden"} id="t2-editor">
+      <textarea id="t2-essay" placeholder="Viết bài luận Task 2 của bạn ở đây… (tiếng Anh, 4 đoạn)">${esc(localStorage.getItem("epux-t2-draft") || "")}</textarea>
+      <div class="wc-note"><span id="t2-wc">0</span> / 250 từ tối thiểu</div>
+      <button class="btn primary mt" id="t2-grade">${ic("pen")} Chấm điểm (AI)</button>
+    </div>
+    <div id="t2-result" class="mt"></div>`;
+
+  $("#t2-mode").addEventListener("change", (e) => {
+    task2State.mode = e.target.value;
+    task2State.item = null; task2State.gen = null;
+    t2Timer(true);
+    renderTask2(body);
+  });
+  const typeSel = $("#t2-type");
+  if (typeSel) typeSel.addEventListener("change", (e) => { task2State.type = e.target.value; });
+
+  const newBtn = $("#t2-new");
+  newBtn.addEventListener("click", () => busy(newBtn, async () => {
+    if (task2State.mode === "bank") {
+      let pool = bank.filter((b) => b.id !== task2State.item?.id);
+      if (task2State.type !== "all") pool = pool.filter((b) => b.type === task2State.type);
+      if (!pool.length) { toast("Hết đề dạng này rồi", "warn"); return; }
+      task2State.item = pool[Math.floor(Math.random() * pool.length)];
+      task2State.gen = null;
+    } else {
+      task2State.gen = await api("/api/task2/generate", { method: "POST", body: {} });
+      task2State.item = null;
+    }
+    localStorage.removeItem("epux-t2-draft");
+    task2State.secondsLeft = 40 * 60;
+    renderTask2(body);
+    t2Timer();
+  }));
+
+  const essay = $("#t2-essay");
+  if (essay) {
+    const updateWc = () => {
+      const n = essay.value.trim() ? essay.value.trim().split(/\s+/).length : 0;
+      const el = $("#t2-wc");
+      el.textContent = n;
+      el.classList.toggle("short", n < 250);
+    };
+    updateWc();
+    essay.addEventListener("input", () => { updateWc(); localStorage.setItem("epux-t2-draft", essay.value); });
+  }
+
+  const gradeBtn = $("#t2-grade");
+  if (gradeBtn) gradeBtn.addEventListener("click", () => busy(gradeBtn, async () => {
+    const payload = task2State.mode === "bank"
+      ? { bank_id: task2State.item.id, content: essay.value }
+      : {
+          content: essay.value,
+          prompt: task2State.gen.prompt,
+          title: task2State.gen.title || "",
+          essay_type: task2State.gen.question_type || "opinion",
+        };
+    const res = await api("/api/task2/grade", { method: "POST", body: payload });
+    t2Timer(true);
+    localStorage.removeItem("epux-t2-draft");
+    $("#t2-result").innerHTML =
+      task2CheckHTML(res.writing.feedback) + gradeResultHTML(res.writing) + modelAnswerHTML(res.model);
+    bindVocabUpgradeButtons();
+    $("#t2-result").scrollIntoView({ behavior: "smooth" });
+    toast("Đã chấm xong (+1 thử thách Luyện bút)", "ok");
+  }));
+
+  const modelBox = $(".p-model");
+  if (modelBox) modelBox.addEventListener("toggle", async () => {
+    const el = $(".p-model-body");
+    if (!modelBox.open || !el || el.dataset.loaded) return;
+    const m = await api(`/api/task2/model/${el.dataset.model}`);
+    el.innerHTML = m.model.split("\n\n").map((p) => `<p>${esc(p)}</p>`).join("");
+    el.dataset.loaded = "1";
+  });
+
+  if (task && !task2State.timerId) t2Timer();
+}
+
+function t2TaskHTML(task) {
+  const outline = (task.outline_vi || []).map((o) => `<li>${esc(o)}</li>`).join("");
+  const lang = (task.target_language || []).map((t) => `
+    <div class="tl-item">
+      <span class="tl-phrase">${esc(t.phrase)}</span>
+      ${t.note_vi ? `<span class="tl-note">${esc(t.note_vi)}</span>` : ""}
+    </div>`).join("");
+  const label = task2State.data.knowledge.types[task.type || task.question_type];
+  return `
+    <div class="card prompt-card">
+      <div class="p-title">${esc(task.title || "Task 2")}
+        ${label ? `<span class="chip">${esc(label.label_en)}</span>` : ""}
+        ${task.id ? `<span class="chip">đề thật</span>` : `<span class="chip">AI</span>`}
+      </div>
+      <div class="p-text">${esc(task.question || task.prompt)}</div>
+      ${task.skill_vi ? `<div class="p-guide">${ic("target")} Đề này để luyện: ${esc(task.skill_vi)}</div>` : ""}
+      ${task.focus_vi ? `<div class="p-guide">${ic("bulb")} ${esc(task.focus_vi)}</div>` : ""}
+      ${task.guidance_vi ? `<div class="p-guide">${ic("bulb")} ${esc(task.guidance_vi)}</div>` : ""}
+      ${outline ? `<details class="p-outline"><summary>${ic("list")} Dàn ý gợi ý — tự nghĩ trước rồi hãy mở</summary><ul>${outline}</ul></details>` : ""}
+      ${lang ? `<div class="p-lang"><div class="p-lang-label">${ic("sparkle")} Thử dùng trong bài</div>${lang}</div>` : ""}
+      ${task.id ? `<details class="p-model"><summary>${ic("book")} Bài mẫu band 9 — chỉ mở sau khi bạn đã viết xong</summary>
+        <div class="p-model-body" data-model="${esc(task.id)}">Đang tải…</div></details>` : ""}
+    </div>`;
+}
+
+function task2CheckHTML(fb) {
+  const t = (fb || {}).task2_check;
+  if (!t) return "";
+  const item = (ok, label) => `
+    <div class="t1-check ${ok ? "ok" : "bad"}">${ic(ok ? "check-circle" : "x-circle")} ${label}</div>`;
+  return `
+    <div class="card t1-checks">
+      <b>${ic("target")} 4 điểm sống còn của Task 2</b>
+      <div class="t1-check-row mt">
+        ${item(t.clear_position, "Quan điểm rõ ràng")}
+        ${item(t.all_parts_addressed, "Trả lời đủ mọi phần")}
+        ${item(t.ideas_relevant, "Ý liên quan & phát triển")}
+        ${item(t.word_count_ok, "Đủ 250 từ")}
+      </div>
+      ${t.position_quote ? `<div class="t1-quote">Quan điểm tìm thấy: "${esc(t.position_quote)}"</div>` : ""}
+      ${t.verdict_vi ? `<div class="t1-verdict">${esc(t.verdict_vi)}</div>` : ""}
+    </div>`;
+}
+
+async function renderTask2Knowledge(body) {
+  if (!task2State.data) task2State.data = await api("/api/task2/knowledge");
+  const k = task2State.data.knowledge;
+
+  const structure = k.structure.map((s) => `
+    <div class="kn-step">
+      <div class="kn-step-name">${esc(s.name)}</div>
+      <div class="kn-step-body">${esc(s.body_vi)}</div>
+      <div class="kn-step-ex">${esc(s.example)}</div>
+    </div>`).join("");
+  const criteria = k.criteria.map((c) => `
+    <details class="kn-type">
+      <summary>${esc(c.name_vi)}</summary>
+      <ul>${c.points_vi.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
+    </details>`).join("");
+  const rules = k.rules_vi.map((r) => `<li>${esc(r)}</li>`).join("");
+  const traps = k.traps_vi.map((t) => `<li>${esc(t)}</li>`).join("");
+  const tips = Object.entries(k.type_tips).map(([type, list]) => `
+    <details class="kn-type">
+      <summary>${esc(k.types[type].label_vi)} <span class="chip">${esc(k.types[type].cue)}</span></summary>
+      <ul>${list.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    </details>`).join("");
+  const persp = k.perspectives.map((p) => `
+    <div class="kn-lang-group">
+      <div class="kn-lang-name">${esc(p.name)}</div>
+      <div class="kn-step-body">${esc(p.q)}</div>
+    </div>`).join("");
+  const lang = k.language.map((g) => `
+    <div class="kn-lang-group">
+      <div class="kn-lang-name">${esc(g.group_vi)}</div>
+      <div class="kn-lang-items">${g.items.map((i) => `<span class="chip">${esc(i)}</span>`).join("")}</div>
+    </div>`).join("");
+  const glossary = k.glossary.map((g) => `
+    <div class="kn-step">
+      <div class="kn-step-name">${esc(g.term)}</div>
+      <div class="kn-step-body">${esc(g.def)}</div>
+    </div>`).join("");
+
+  body.innerHTML = `
+    <div class="card mb"><p class="kn-intro">${esc(k.intro_vi)}</p></div>
+
+    <div class="card mb">
+      <b>${ic("layers")} Bộ khung 4 đoạn</b>
+      <div class="kn-steps mt">${structure}</div>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("target")} 4 tiêu chí chấm — và cách ăn điểm từng cái</b>
+      <div class="mt">${criteria}</div>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("list")} Luật bất di bất dịch</b>
+      <ul class="kn-list">${rules}</ul>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("alert")} Lỗi giết band</b>
+      <ul class="kn-list kn-traps">${traps}</ul>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("quill")} Mẹo theo từng dạng đề</b>
+      <div class="mt">${tips}</div>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("bulb")} Bí quyết nghĩ ý: soi đề qua nhiều góc nhìn</b>
+      <div class="kn-lang mt">${persp}</div>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("sparkle")} Từ nối & referencing</b>
+      <div class="kn-lang mt">${lang}</div>
+    </div>
+
+    <div class="card mb">
+      <b>${ic("book")} Thuật ngữ hay dùng</b>
+      <div class="kn-steps mt">${glossary}</div>
+    </div>
+
+    <div class="card">
+      <b>${ic("chart")} Band descriptors chính thức (IELTS)</b>
+      <div class="page-sub mt" style="margin-bottom: 10px;">Bảng tiêu chí gốc — đối chiếu để biết mình đang ở band nào.</div>
+      <img class="t1-img" style="max-width: 100%;" src="${esc(k.band_image)}" alt="IELTS Writing Task 2 band descriptors">
     </div>`;
 }
 

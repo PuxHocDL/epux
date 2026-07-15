@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import jwt
 import bcrypt
 
-from . import game, task1
+from . import game, task1, task2
 from .config import AppConfig, default_db_path
 from .db import Database
 from .llm import LLMClient, LLMError
@@ -507,6 +507,80 @@ def task1_grade(payload: dict[str, Any] = Body(...), user_id: int = Depends(get_
             overall_band=band_value, feedback=feedback,
         )
     return {"writing": writing.to_dict(), "model": task1.model_answer(bank_id) if bank_id else None}
+
+
+# ----------------------------------------------------------------- task 2
+
+@app.get("/api/task2/knowledge")
+def task2_knowledge(user_id: int = Depends(get_current_user)) -> dict[str, Any]:
+    return {"knowledge": task2.KNOWLEDGE, "bank": task2.bank_public()}
+
+
+@app.get("/api/task2/model/{item_id}")
+def task2_model(item_id: str, user_id: int = Depends(get_current_user)) -> dict[str, Any]:
+    model = task2.model_answer(item_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề này.")
+    return model
+
+
+@app.post("/api/task2/generate")
+def task2_generate(payload: dict[str, Any] = Body(...), user_id: int = Depends(get_current_user)) -> dict[str, Any]:
+    _llm_guard()
+    with db_lock:
+        recent = db.recent_prompts(user_id)
+    # Reuse the Task 2 essay-question generator (kind="ielts").
+    data = _run_llm(llm.writing_prompt, "ielts", config.level, config.target_band, recent)
+    data["kind"] = "task2"
+    return data
+
+
+@app.post("/api/task2/grade")
+def task2_grade(payload: dict[str, Any] = Body(...), user_id: int = Depends(get_current_user)) -> dict[str, Any]:
+    _llm_guard()
+    content = str(payload.get("content", "")).strip()
+    prompt = str(payload.get("prompt", "")).strip()
+    title = str(payload.get("title", "")).strip()
+    essay_type = str(payload.get("essay_type", "opinion"))
+    bank_id = str(payload.get("bank_id", "")).strip()
+    model_text = None
+
+    if bank_id:
+        item = task2.BANK_BY_ID.get(bank_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đề này.")
+        prompt = item["question"]
+        title = item["title"]
+        essay_type = item["type"]
+        model_text = item["model"]
+
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Thiếu đề bài.")
+    if len(content.split()) < 40:
+        raise HTTPException(status_code=400, detail="Bài viết quá ngắn (tối thiểu 40 từ).")
+
+    word_count = len(content.split())
+    feedback = _run_llm(
+        llm.grade_task2, prompt, essay_type, content, config.level, config.target_band,
+        word_count=word_count, model_answer=model_text,
+    )
+    # LLMs cannot count words reliably — decide this one here.
+    check = feedback.get("task2_check")
+    if isinstance(check, dict):
+        check["word_count_ok"] = word_count >= 250
+        check["word_count"] = word_count
+
+    band = feedback.get("overall_band")
+    try:
+        band_value = float(band) if band is not None else None
+    except (TypeError, ValueError):
+        band_value = None
+    with db_lock:
+        writing = db.add_writing(
+            user_id, kind="task2", title=title, prompt=prompt, content=content,
+            overall_band=band_value, feedback=feedback,
+        )
+    return {"writing": writing.to_dict(), "model": task2.model_answer(bank_id) if bank_id else None}
 
 
 # ---------------------------------------------------------------- patterns
