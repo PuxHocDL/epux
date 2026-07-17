@@ -1511,6 +1511,7 @@ function task1CheckHTML(fb) {
         ${item(t.word_count_ok, "Đủ 150 từ")}
       </div>
       ${t.overview_quote ? `<div class="t1-quote">Overview tìm thấy: "${esc(t.overview_quote)}"</div>` : ""}
+      ${t.is_memorized_or_offtopic ? `<div class="t1-verdict bad">${ic("alert")} Bài đọc như học thuộc lòng chung chung hoặc không bám sát đề này — điểm bên dưới sẽ không phản ánh đúng năng lực thật.</div>` : ""}
       ${t.verdict_vi ? `<div class="t1-verdict">${esc(t.verdict_vi)}</div>` : ""}
     </div>`;
 }
@@ -1751,6 +1752,7 @@ function task2CheckHTML(fb) {
         ${item(t.word_count_ok, "Đủ 250 từ")}
       </div>
       ${t.position_quote ? `<div class="t1-quote">Quan điểm tìm thấy: "${esc(t.position_quote)}"</div>` : ""}
+      ${t.is_memorized_or_offtopic ? `<div class="t1-verdict bad">${ic("alert")} Bài đọc như học thuộc lòng chung chung hoặc không bám sát đề này — điểm bên dưới sẽ không phản ánh đúng năng lực thật.</div>` : ""}
       ${t.verdict_vi ? `<div class="t1-verdict">${esc(t.verdict_vi)}</div>` : ""}
     </div>`;
 }

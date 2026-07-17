@@ -1067,6 +1067,14 @@ table.datatable th { color: var(--muted); font-weight: 600; }
 .t1-check.bad { color: var(--bad); border-color: var(--bad); background: rgba(192, 61, 61, 0.07); }
 .t1-quote { margin-top: 12px; font-style: italic; color: var(--text-2); border-left: 3px solid var(--border); padding-left: 10px; }
 .t1-verdict { margin-top: 10px; color: var(--text-2); line-height: 1.6; }
+.t1-verdict.bad {
+  color: var(--bad);
+  font-weight: 600;
+  background: rgba(192, 61, 61, 0.07);
+  border: 1px solid var(--bad);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
 
 /* --- tri thức --- */
 .kn-intro { margin: 0; line-height: 1.75; color: var(--text-2); }

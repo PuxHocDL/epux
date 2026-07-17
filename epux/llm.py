@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from . import task1, task2
+from . import descriptors, task1, task2
 from .config import LLMSettings
 
 
@@ -58,6 +58,40 @@ SYSTEM_BASE = (
     "All explanations, meanings and feedback aimed at the learner must be in Vietnamese (concise, "
     "thÃ¢n thiá»‡n, xÆ°ng 'báº¡n'); English is used only for the target-language material itself (terms, "
     "examples, essays). Always return valid JSON only, no markdown fences, no commentary."
+)
+
+SCORING_METHOD = (
+    "Scoring method — follow exactly, per criterion:\n"
+    "1. Read the verbatim band descriptor bullets given above for this criterion.\n"
+    "2. Find the ONE band whose bullets the text matches most closely as a whole, not just one lucky "
+    "phrase.\n"
+    "3. Check the bullets of the band directly ABOVE: identify the specific bullet the text fails to "
+    "meet, and use it as a 'why not higher' reason. If the text meets that band's bullets too, move up "
+    "and repeat until you find the band it fails to fully meet.\n"
+    "4. Check the bullets of the band directly BELOW: confirm the text clearly clears them, and use "
+    "that as a 'why not lower' reason.\n"
+    "5. If the text sits cleanly between two neighbouring bands (meets some but not all of the higher "
+    "band's bullets), award the half band between them.\n"
+    "Known failure modes in LLM-based essay grading — actively resist them:\n"
+    "- Do not default to band 6-6.5 out of politeness. LLM graders are documented to over-rate weak "
+    "writing; if the text actually matches the band 4-5 bullets (thin/repetitive ideas, only basic "
+    "vocabulary, frequent errors, little real organisation), say so plainly instead of rounding up.\n"
+    "- Do not reward length, formal-sounding openers, or fluent-looking sentences on their own — match "
+    "against what the bullets actually claim (precision, range, accuracy, development), not surface "
+    "polish. A long, confident-sounding sentence with a wrong collocation or unsupported claim is still "
+    "a weakness, not a strength.\n"
+    "- Judge Lexical Resource on precision and collocation, not on rare/impressive-looking words; judge "
+    "Grammar on range AND accuracy together, not accuracy alone (a text of only simple, correct "
+    "sentences cannot reach band 7+ on Grammar, per the band 7 bullet requiring complex structures).\n"
+    "- If the essay reads as a memorised generic template with no real connection to the specifics of "
+    "THIS task, or is essentially copied from a model/sample answer, flag it in the relevant _check "
+    "block (see 'Band 0' rule below) instead of scoring it as the learner's own developed response.\n"
+    "Being strict is not the same as being harsh: do not manufacture faults to avoid seeming lenient. "
+    "If the text genuinely matches a high band's bullets (clear position throughout, logical "
+    "organisation, a wide range of accurate structures, precise vocabulary), award that band "
+    "confidently. A trait a band's own bullets explicitly allow — e.g. band 7 Task Response permits 'a "
+    "tendency to over-generalise and/or supporting ideas may lack focus' — is NOT a valid reason to "
+    "mark below that band; only weigh it against reaching band 8+, where that allowance disappears.\n"
 )
 
 GRADING_V2_SCHEMA = (
@@ -412,8 +446,10 @@ class LLMClient:
     ) -> dict[str, Any]:
         user = (
             f"{task1.prompt_knowledge(chart_type)}\n\n"
-            "Grade this IELTS Writing Task 1 answer with the official Task 1 band descriptors "
-            "(0-9, half bands). The first criterion is TASK ACHIEVEMENT (not Task Response).\n"
+            f"{descriptors.task1_rubric()}\n\n"
+            f"{SCORING_METHOD}\n"
+            "Grade this IELTS Writing Task 1 answer against the descriptor tables above (0-9, half "
+            "bands). The first criterion is TASK ACHIEVEMENT (not Task Response).\n"
             f"Task: {prompt}\n"
             f"The data behind the figure (the learner saw it as a chart, you see it as JSON — use it to "
             f"check every number they quote):\n{json.dumps(chart, ensure_ascii=False)}\n---\n"
@@ -422,23 +458,31 @@ class LLMClient:
             f"Learner level {level}, target band {target_band}. Be honest, not flattering.\n"
             "Work like a real examiner, in this order (reason silently, output only the final JSON):\n"
             "1. Task Achievement first, and be strict about it: is there a real OVERVIEW (a clear "
-            "statement of the big picture, no figures)? If there is no overview, Task Achievement "
-            "cannot go above 5. Are the key features selected, or did they just list everything? Is "
-            "every figure they quote actually correct against the data above? Did they add opinions, "
-            "causes or a conclusion (all out of scope for Task 1)? Is it at least 150 words?\n"
-            "2. Then Coherence, Lexical Resource, Grammar against the descriptors, quoting the "
-            "learner's own words as evidence. Judge Lexical Resource on the precision of the "
-            "data-describing language (rise/fall verbs, adverbs of degree, comparison), not on rare words.\n"
+            "statement of the big picture, no figures)? A missing overview means the text cannot meet "
+            "band 6+ (which require 'an overview with information appropriately selected'), so Task "
+            "Achievement is capped at 5. Are the key features selected, or did they just list "
+            "everything? Is every figure they quote actually correct against the data above (a wrong "
+            "figure counts against the band 6 bullet 'details may be ... inaccurate')? Did they add "
+            "opinions, causes or a conclusion (all out of scope for Task 1, and count as 'format may "
+            "be inappropriate')? Is it at least 150 words (the app enforces a word-count penalty on top "
+            "of your band separately, so score the writing itself here)?\n"
+            "2. Then Coherence and Cohesion, Lexical Resource, Grammatical Range and Accuracy, each "
+            "matched against its own table above, quoting the learner's own words as evidence. Judge "
+            "Lexical Resource on the precision of the data-describing language (rise/fall verbs, "
+            "adverbs of degree, comparison), not on rare words.\n"
             "3. Collect EVERY real error — be exhaustive — and classify each one. A wrong number or a "
             "misread of the chart is type \"data\".\n"
-            "4. Decide bands honestly: half bands, no defaulting to 6.0-6.5, criteria may differ by 1.0+.\n"
+            "4. Decide bands honestly using the method above: half bands, no defaulting to 6.0-6.5, "
+            "criteria may differ by 1.0+.\n"
             "5. Compute overall_band as the average of the four criterion bands, rounded to the nearest IELTS half-band.\n"
             + GRADING_V2_SCHEMA +
             'Return {"overall_band": number, '
             '"criteria": {"task_response": number, "coherence": number, "lexical_resource": number, "grammar": number}, '
             '"task1_check": {"has_overview": bool, "overview_quote": "câu overview bạn tìm thấy trong bài, '
             'hoặc \\"\\" nếu không có", "data_accurate": bool, "word_count_ok": bool, '
-            '"opinion_free": bool, "verdict_vi": "1-2 câu: bài này pass/fail ở 4 điểm sống còn trên, vì sao"}, '
+            '"opinion_free": bool, "is_memorized_or_offtopic": true nếu bài đọc như một mẫu học thuộc '
+            'chung chung không thực sự bám đề này hoặc chép gần nguyên văn bài mẫu, '
+            '"verdict_vi": "1-2 câu: bài này pass/fail ở 4 điểm sống còn trên, vì sao"}, '
             '"criteria_feedback": {'
             '"task_response": {"comment_vi": "nhận xét CÓ DẪN CHỨNG trích từ bài", "to_next_band_vi": "việc cụ thể để lên band"}, '
             '"coherence": {"comment_vi": "...", "to_next_band_vi": "..."}, '
@@ -459,6 +503,7 @@ class LLMClient:
         return self.chat(
             "You are a strict but constructive IELTS examiner marking Writing Task 1.",
             user,
+            temperature=0.2,
             max_tokens=4000,
         )
 
@@ -482,8 +527,10 @@ class LLMClient:
         )
         user = (
             f"{task2.prompt_knowledge(essay_type)}\n\n"
-            "Grade this IELTS Writing Task 2 essay with the official Task 2 band descriptors "
-            "(0-9, half bands). The first criterion is TASK RESPONSE.\n"
+            f"{descriptors.task2_rubric()}\n\n"
+            f"{SCORING_METHOD}\n"
+            "Grade this IELTS Writing Task 2 essay against the descriptor tables above (0-9, half "
+            "bands). The first criterion is TASK RESPONSE.\n"
             f"Task: {prompt}\n---\n"
             f"{model_note}"
             f"Learner's essay ({word_count} words — this count is authoritative, do not recount):\n"
@@ -491,24 +538,30 @@ class LLMClient:
             f"Learner level {level}, target band {target_band}. Be honest, not flattering.\n"
             "Work like a real examiner, in this order (reason silently, output only the final JSON):\n"
             "1. Task Response first, and be strict: is the writer's POSITION clear and consistent "
-            "(reading only intro + conclusion should reveal it)? No clear/consistent position caps "
-            "Task Response at 5. Are ALL parts of the prompt answered (discuss both views = both "
-            "views AND the writer's own opinion; problem+solution = both; two-part = both questions), "
-            "with roughly balanced space? Are the ideas relevant to THIS task and developed with "
-            "explanation/examples, or just stated? Irrelevant ideas also cap TR at 5. Is it at least "
-            "250 words?\n"
+            "(reading only intro + conclusion should reveal it)? Per the band 4 bullet, an unclear "
+            "position caps Task Response at 4-5. Are ALL parts of the prompt answered (discuss both "
+            "views = both views AND the writer's own opinion; problem+solution = both; two-part = both "
+            "questions), with roughly balanced space — per band 6, addressing parts unevenly already "
+            "caps below 7? Are the ideas relevant to THIS task and developed with explanation/examples "
+            "('fully extended and well supported' = band 9) or just stated ('largely undeveloped' = "
+            "band 3)? Is it at least 250 words (the app enforces a word-count penalty on top of your "
+            "band separately, so score the writing itself here)?\n"
             "2. Then Coherence & Cohesion (4-paragraph structure, topic sentences, paragraph unity, "
             "linking words, referencing), Lexical Resource (precision and collocation, not rare "
-            "words), and Grammatical Range & Accuracy — quoting the learner's own words as evidence.\n"
+            "words), and Grammatical Range & Accuracy, each matched against its own table above — "
+            "quoting the learner's own words as evidence.\n"
             "3. Collect EVERY real error — be exhaustive — and classify each one.\n"
-            "4. Decide bands honestly: half bands, no defaulting to 6.0-6.5, criteria may differ by 1.0+.\n"
+            "4. Decide bands honestly using the method above: half bands, no defaulting to 6.0-6.5, "
+            "criteria may differ by 1.0+.\n"
             "5. Compute overall_band as the average of the four criterion bands, rounded to the nearest IELTS half-band.\n"
             + GRADING_V2_SCHEMA +
             'Return {"overall_band": number, '
             '"criteria": {"task_response": number, "coherence": number, "lexical_resource": number, "grammar": number}, '
             '"task2_check": {"clear_position": bool, "position_quote": "câu thể hiện quan điểm bạn '
             'tìm thấy, hoặc \\"\\" nếu không có", "all_parts_addressed": bool, "ideas_relevant": bool, '
-            '"word_count_ok": bool, "verdict_vi": "1-2 câu: bài này pass/fail ở 4 điểm sống còn trên, vì sao"}, '
+            '"word_count_ok": bool, "is_memorized_or_offtopic": true nếu bài đọc như một mẫu học thuộc '
+            'chung chung không thực sự bám đề này hoặc chép gần nguyên văn bài mẫu, '
+            '"verdict_vi": "1-2 câu: bài này pass/fail ở 4 điểm sống còn trên, vì sao"}, '
             '"criteria_feedback": {'
             '"task_response": {"comment_vi": "nhận xét CÓ DẪN CHỨNG trích từ bài", "to_next_band_vi": "việc cụ thể để lên band"}, '
             '"coherence": {"comment_vi": "...", "to_next_band_vi": "..."}, '
@@ -529,6 +582,7 @@ class LLMClient:
         return self.chat(
             "You are a strict but constructive IELTS examiner marking Writing Task 2.",
             user,
+            temperature=0.2,
             max_tokens=4000,
         )
 
