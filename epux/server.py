@@ -127,21 +127,74 @@ def _criteria_average(criteria: dict[str, Any]) -> float | None:
     return _round_half_band(sum(values) / len(values))
 
 
+def _word_count_band_cap(word_count: int, minimum: int) -> float | None:
+    """Deterministic ceiling on Task Achievement/Response for under-length answers.
+
+    Not part of the official band descriptor wording (word count isn't mentioned
+    there) but a well-known examiner practice: a markedly short answer cannot have
+    "fully" or "sufficiently" addressed the task. We do not trust the LLM's own
+    self-restraint on this, since it is one of the few checks that is 100%
+    mechanical. The thresholds (90% / 70% of the minimum) are our own calibration,
+    not an official formula, and only ever lower a band — never raise one.
+    """
+    if word_count >= minimum:
+        return None
+    ratio = word_count / minimum
+    if ratio >= 0.9:
+        return 6.0
+    if ratio >= 0.7:
+        return 5.0
+    return 4.0
+
+
 def _normalize_grading_feedback(
     feedback: dict[str, Any], *, task_kind: str, word_count: int
 ) -> dict[str, Any]:
+    minimum = 150 if task_kind == "task1" else 250
     criteria = feedback.get("criteria")
     if isinstance(criteria, dict):
+        cap = _word_count_band_cap(word_count, minimum)
+        if cap is not None:
+            try:
+                current = float(criteria.get("task_response"))
+            except (TypeError, ValueError):
+                current = None
+            if current is not None and current > cap:
+                criteria["task_response"] = cap
+                limiting = feedback.get("limiting_factors")
+                if not isinstance(limiting, list):
+                    limiting = []
+                    feedback["limiting_factors"] = limiting
+                limiting.append(
+                    {
+                        "criterion": "task_response",
+                        "issue_vi": (
+                            f"Bài chỉ có {word_count} từ, dưới mức tối thiểu {minimum} từ, nên "
+                            f"bị giới hạn trần điểm ở band {cap:g} cho tiêu chí này (quy tắc "
+                            "chấm số từ, áp dụng độc lập với các tiêu chí khác)."
+                        ),
+                        "evidence": f"{word_count}/{minimum} từ",
+                        "band_cap": cap,
+                    }
+                )
         average = _criteria_average(criteria)
         if average is not None:
             feedback["overall_band"] = average
+            default_range = {
+                "low": max(0.0, average - 0.5),
+                "high": min(9.0, average + 0.5),
+                "reason_vi": "Khoảng điểm ước lượng dựa trên độ chắc chắn khi đối chiếu 4 tiêu chí IELTS.",
+            }
             band_range = feedback.get("band_range")
-            if not isinstance(band_range, dict):
-                feedback["band_range"] = {
-                    "low": max(0.0, average - 0.5),
-                    "high": min(9.0, average + 0.5),
-                    "reason_vi": "Khoảng điểm ước lượng dựa trên độ chắc chắn khi đối chiếu 4 tiêu chí IELTS.",
-                }
+            if isinstance(band_range, dict):
+                try:
+                    lo, hi = float(band_range["low"]), float(band_range["high"])
+                except (KeyError, TypeError, ValueError):
+                    lo = hi = None
+                if lo is None or hi is None or not (lo <= average <= hi):
+                    feedback["band_range"] = default_range
+            else:
+                feedback["band_range"] = default_range
 
     feedback.setdefault("confidence", "medium")
     feedback.setdefault("limiting_factors", [])
@@ -164,7 +217,6 @@ def _normalize_grading_feedback(
     if not isinstance(check, dict):
         check = {}
         feedback[check_key] = check
-    minimum = 150 if task_kind == "task1" else 250
     check["word_count_ok"] = word_count >= minimum
     check["word_count"] = word_count
     return feedback
