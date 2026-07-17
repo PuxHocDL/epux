@@ -111,6 +111,64 @@ def _run_llm(fn, *args, **kwargs):
     except LLMError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+
+def _round_half_band(value: float) -> float:
+    scaled = float(value) * 2
+    return int(scaled + 0.5) / 2
+
+
+def _criteria_average(criteria: dict[str, Any]) -> float | None:
+    values = []
+    for key in ("task_response", "coherence", "lexical_resource", "grammar"):
+        try:
+            values.append(float(criteria[key]))
+        except (KeyError, TypeError, ValueError):
+            return None
+    return _round_half_band(sum(values) / len(values))
+
+
+def _normalize_grading_feedback(
+    feedback: dict[str, Any], *, task_kind: str, word_count: int
+) -> dict[str, Any]:
+    criteria = feedback.get("criteria")
+    if isinstance(criteria, dict):
+        average = _criteria_average(criteria)
+        if average is not None:
+            feedback["overall_band"] = average
+            band_range = feedback.get("band_range")
+            if not isinstance(band_range, dict):
+                feedback["band_range"] = {
+                    "low": max(0.0, average - 0.5),
+                    "high": min(9.0, average + 0.5),
+                    "reason_vi": "Khoảng điểm ước lượng dựa trên độ chắc chắn khi đối chiếu 4 tiêu chí IELTS.",
+                }
+
+    feedback.setdefault("confidence", "medium")
+    feedback.setdefault("limiting_factors", [])
+    feedback.setdefault("descriptor_match", {})
+    feedback.setdefault("why_not_higher", [])
+    feedback.setdefault("why_not_lower", [])
+    feedback.setdefault(
+        "band_up_routes",
+        {
+            "quick_fixes": [],
+            "next_practice": [],
+            "language_upgrades": [],
+            "strategy": [],
+            "avoid_next_time": [],
+        },
+    )
+
+    check_key = "task1_check" if task_kind == "task1" else "task2_check"
+    check = feedback.get(check_key)
+    if not isinstance(check, dict):
+        check = {}
+        feedback[check_key] = check
+    minimum = 150 if task_kind == "task1" else 250
+    check["word_count_ok"] = word_count >= minimum
+    check["word_count"] = word_count
+    return feedback
+
 def _word_from_llm(user_id: int, data: dict[str, Any], *, topic: str, source: str) -> Any:
     band = str(data.get("band", ""))
     is_gem = bool(data.get("is_gem"))
@@ -491,10 +549,7 @@ def task1_grade(payload: dict[str, Any] = Body(...), user_id: int = Depends(get_
         word_count=word_count,
     )
     # LLMs cannot count words reliably — decide this one here.
-    check = feedback.get("task1_check")
-    if isinstance(check, dict):
-        check["word_count_ok"] = word_count >= 150
-        check["word_count"] = word_count
+    feedback = _normalize_grading_feedback(feedback, task_kind="task1", word_count=word_count)
 
     band = feedback.get("overall_band")
     try:
@@ -565,10 +620,7 @@ def task2_grade(payload: dict[str, Any] = Body(...), user_id: int = Depends(get_
         word_count=word_count, model_answer=model_text,
     )
     # LLMs cannot count words reliably — decide this one here.
-    check = feedback.get("task2_check")
-    if isinstance(check, dict):
-        check["word_count_ok"] = word_count >= 250
-        check["word_count"] = word_count
+    feedback = _normalize_grading_feedback(feedback, task_kind="task2", word_count=word_count)
 
     band = feedback.get("overall_band")
     try:

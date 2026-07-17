@@ -60,6 +60,32 @@ SYSTEM_BASE = (
     "examples, essays). Always return valid JSON only, no markdown fences, no commentary."
 )
 
+GRADING_V2_SCHEMA = (
+    'Also return these IELTS Grading V2 fields: '
+    '"band_range": {"low": number, "high": number, "reason_vi": "vì sao khoảng điểm này hợp lý"}, '
+    '"confidence": "low|medium|high", '
+    '"limiting_factors": [{"criterion": "task_response|coherence|lexical_resource|grammar", '
+    '"issue_vi": "yếu tố đang chặn band", "evidence": "trích từ bài hoặc mô tả bằng chứng", '
+    '"band_cap": number_or_null}], '
+    '"descriptor_match": {'
+    '"task_response": {"band": number, "matched_features_vi": ["đặc điểm descriptor bài đã khớp"], '
+    '"missing_features_vi": ["đặc điểm còn thiếu để lên band kế"], "evidence": ["trích dẫn cụ thể"]}, '
+    '"coherence": {"band": number, "matched_features_vi": [], "missing_features_vi": [], "evidence": []}, '
+    '"lexical_resource": {"band": number, "matched_features_vi": [], "missing_features_vi": [], "evidence": []}, '
+    '"grammar": {"band": number, "matched_features_vi": [], "missing_features_vi": [], "evidence": []}}, '
+    '"why_not_higher": ["3-5 lý do cụ thể vì sao chưa lên band kế tiếp"], '
+    '"why_not_lower": ["2-4 lý do cụ thể vì sao vẫn giữ được band hiện tại"], '
+    '"band_up_routes": {"quick_fixes": ["3-5 sửa nhanh ngay trong bài này"], '
+    '"next_practice": ["3-5 bài tập/việc luyện cho bài sau"], '
+    '"language_upgrades": ["4-6 mẫu câu, collocation hoặc cách diễn đạt nên học"], '
+    '"strategy": ["2-4 chiến lược riêng cho dạng đề này"], '
+    '"avoid_next_time": ["2-4 lỗi cần tránh lần sau"]}. '
+    "For each criterion, first match the learner's evidence to the public IELTS descriptor features, "
+    "then decide the band. Explain why the answer is not 0.5 higher and not 0.5 lower. "
+    "If a task-specific failure creates a band cap, state it in limiting_factors. "
+    "Make band_up_routes generous and practical, not just 2 generic tips. "
+)
+
 
 class LLMClient:
     def __init__(self, settings: LLMSettings | None = None) -> None:
@@ -406,6 +432,8 @@ class LLMClient:
             "3. Collect EVERY real error — be exhaustive — and classify each one. A wrong number or a "
             "misread of the chart is type \"data\".\n"
             "4. Decide bands honestly: half bands, no defaulting to 6.0-6.5, criteria may differ by 1.0+.\n"
+            "5. Compute overall_band as the average of the four criterion bands, rounded to the nearest IELTS half-band.\n"
+            + GRADING_V2_SCHEMA +
             'Return {"overall_band": number, '
             '"criteria": {"task_response": number, "coherence": number, "lexical_resource": number, "grammar": number}, '
             '"task1_check": {"has_overview": bool, "overview_quote": "câu overview bạn tìm thấy trong bài, '
@@ -474,6 +502,8 @@ class LLMClient:
             "words), and Grammatical Range & Accuracy — quoting the learner's own words as evidence.\n"
             "3. Collect EVERY real error — be exhaustive — and classify each one.\n"
             "4. Decide bands honestly: half bands, no defaulting to 6.0-6.5, criteria may differ by 1.0+.\n"
+            "5. Compute overall_band as the average of the four criterion bands, rounded to the nearest IELTS half-band.\n"
+            + GRADING_V2_SCHEMA +
             'Return {"overall_band": number, '
             '"criteria": {"task_response": number, "coherence": number, "lexical_resource": number, "grammar": number}, '
             '"task2_check": {"clear_position": bool, "position_quote": "câu thể hiện quan điểm bạn '

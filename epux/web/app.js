@@ -1004,11 +1004,97 @@ const CRITERIA_LABELS = [
 ];
 const ERROR_TYPE_VI = { grammar: "ngữ pháp", vocab: "từ vựng", spelling: "chính tả", coherence: "mạch lạc", task: "lạc đề" };
 
+function criteriaLabelsFor(kind) {
+  return [
+    ["task_response", kind === "task1" ? "Task Achievement" : "Task Response"],
+    ["coherence", "Coherence"],
+    ["lexical_resource", "Lexical"],
+    ["grammar", "Grammar"],
+  ];
+}
+
+function listHTML(items) {
+  return (items || []).filter(Boolean).map((s) => `<li>${esc(s)}</li>`).join("");
+}
+
+function bandMetaHTML(fb) {
+  const r = fb.band_range || {};
+  const range = r.low != null && r.high != null ? `${r.low}-${r.high}` : "";
+  if (!range && !fb.confidence) return "";
+  return `
+    <div class="band-meta">
+      ${range ? `<b>Khoảng điểm ước lượng:</b> <span>${esc(range)}</span>` : ""}
+      ${fb.confidence ? `<span class="chip">confidence: ${esc(fb.confidence)}</span>` : ""}
+      ${r.reason_vi ? `<div>${esc(r.reason_vi)}</div>` : ""}
+    </div>`;
+}
+
+function limitingFactorsHTML(items) {
+  if (!Array.isArray(items) || !items.length) return "";
+  return `
+    <div class="mt limiting-list">
+      <b>${ic("lock")} Yếu tố đang chặn band</b>
+      ${items.map((x) => `
+        <div class="limiting-item">
+          <span class="chip">${esc(x.criterion || "criterion")}${x.band_cap != null ? ` <= ${esc(x.band_cap)}` : ""}</span>
+          <div>${esc(x.issue_vi || "")}</div>
+          ${x.evidence ? `<div class="descriptor-evidence">${esc(x.evidence)}</div>` : ""}
+        </div>`).join("")}
+    </div>`;
+}
+
+function descriptorMatchHTML(fb, labels) {
+  const dm = fb.descriptor_match || {};
+  const rows = labels
+    .filter(([k]) => dm[k])
+    .map(([k, label]) => {
+      const d = dm[k] || {};
+      const matched = listHTML(d.matched_features_vi);
+      const missing = listHTML(d.missing_features_vi);
+      const evidence = listHTML(d.evidence);
+      return `
+        <div class="crit-item">
+          <div class="crit-head">${label} ${d.band != null ? `<span class="chip">${esc(d.band)}</span>` : ""}</div>
+          ${matched ? `<div class="crit-comment"><b>Khớp descriptor:</b><ul>${matched}</ul></div>` : ""}
+          ${missing ? `<div class="crit-next"><b>Thiếu để lên band:</b><ul>${missing}</ul></div>` : ""}
+          ${evidence ? `<div class="descriptor-evidence"><b>Bằng chứng:</b><ul>${evidence}</ul></div>` : ""}
+        </div>`;
+    }).join("");
+  return rows ? `<details class="crit-details mt" open><summary>${ic("search")} Vì sao ra band này?</summary>${rows}</details>` : "";
+}
+
+function whyBandHTML(fb) {
+  const higher = listHTML(fb.why_not_higher);
+  const lower = listHTML(fb.why_not_lower);
+  if (!higher && !lower) return "";
+  return `
+    <div class="diagnosis-grid mt">
+      ${higher ? `<div><b>${ic("alert")} Vì sao chưa lên band cao hơn</b><ul>${higher}</ul></div>` : ""}
+      ${lower ? `<div><b>${ic("check-circle")} Vì sao không thấp hơn</b><ul>${lower}</ul></div>` : ""}
+    </div>`;
+}
+
+function bandRoutesHTML(routes) {
+  if (!routes || typeof routes !== "object") return "";
+  const groups = [
+    ["quick_fixes", "Sửa nhanh trong bài này"],
+    ["next_practice", "Luyện cho bài sau"],
+    ["language_upgrades", "Mẫu câu & collocation nâng band"],
+    ["strategy", "Chiến lược riêng cho dạng đề"],
+    ["avoid_next_time", "Tránh lặp lại"],
+  ].map(([key, title]) => {
+    const items = listHTML(routes[key]);
+    return items ? `<div class="route-group"><b>${esc(title)}</b><ul>${items}</ul></div>` : "";
+  }).join("");
+  return groups ? `<div class="mt band-routes"><b>${ic("target")} Đường lên band tiếp theo</b><div class="diagnosis-grid mt">${groups}</div></div>` : "";
+}
+
 function gradeResultHTML(w) {
   const fb = w.feedback || {};
   const c = fb.criteria || {};
   const cf = fb.criteria_feedback || {};
-  const critDetail = CRITERIA_LABELS
+  const labels = criteriaLabelsFor(w.kind);
+  const critDetail = labels
     .filter(([k]) => cf[k] && (cf[k].comment_vi || cf[k].to_next_band_vi))
     .map(([k, label]) => `
       <div class="crit-item">
@@ -1045,7 +1131,12 @@ function gradeResultHTML(w) {
         <div class="band-tile"><div class="b-num">${c.lexical_resource ?? "–"}</div><div class="b-label">Lexical</div></div>
         <div class="band-tile"><div class="b-num">${c.grammar ?? "–"}</div><div class="b-label">Grammar</div></div>
       </div>
+      ${bandMetaHTML(fb)}
       ${fb.summary_vi ? `<p class="mt" style="line-height: 1.6; color: var(--text-2);">${esc(fb.summary_vi)}</p>` : ""}
+      ${limitingFactorsHTML(fb.limiting_factors)}
+      ${descriptorMatchHTML(fb, labels)}
+      ${whyBandHTML(fb)}
+      ${bandRoutesHTML(fb.band_up_routes)}
       ${critDetail ? `<details class="crit-details mt"><summary>${ic("search")} Phân tích từng tiêu chí</summary>${critDetail}</details>` : ""}
       ${strengths ? `<div class="mt strengths"><b>${ic("star")} Bạn đang làm tốt</b><ul>${strengths}</ul></div>` : ""}
       ${errors ? `<div class="mt"><b>${ic("x-circle")} Lỗi cần sửa (${(fb.errors || []).length})</b>${errors}</div>` : ""}

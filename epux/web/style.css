@@ -645,6 +645,15 @@ details.crit-details summary { cursor: pointer; color: var(--accent); font-size:
 .crit-item .crit-head { font-weight: 700; font-size: 0.9rem; }
 .crit-item .crit-comment { color: var(--text-2); font-size: 0.86rem; margin-top: 4px; line-height: 1.55; }
 .crit-item .crit-next { color: var(--gold-2); font-size: 0.84rem; margin-top: 4px; line-height: 1.5; }
+.band-meta { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px; color: var(--text-2); font-size: 0.86rem; line-height: 1.55; }
+.band-meta .chip { margin-left: 8px; }
+.diagnosis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.diagnosis-grid > div, .route-group { border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; color: var(--text-2); font-size: 0.86rem; line-height: 1.55; }
+.diagnosis-grid ul, .route-group ul, .descriptor-evidence ul { margin: 6px 0 0 18px; padding: 0; }
+.limiting-list { color: var(--text-2); font-size: 0.86rem; line-height: 1.55; }
+.limiting-item { border: 1px solid var(--border); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin-top: 8px; }
+.descriptor-evidence { margin-top: 6px; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.band-routes > b { display: block; margin-bottom: 4px; }
 .strengths ul { margin: 8px 0 0 18px; color: var(--text-2); font-size: 0.88rem; line-height: 1.6; }
 .error-item .err-type { font-size: 0.68rem; }
 .band-plan ol { margin: 8px 0 0 18px; color: var(--text-2); font-size: 0.9rem; line-height: 1.7; }
