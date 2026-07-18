@@ -47,6 +47,15 @@ def _repair_mojibake(data: Any) -> Any:
 _CEFR_RE = re.compile(r"\b(A1|A2|B1|B2|C1|C2)\b")
 
 
+def _cefr_code(level_or_hint: str) -> str:
+    """Extract a bare CEFR code (A1/A2/B1/B2/C1/C2) from a level or band_hint
+    string, e.g. "C2 rare idiom or striking collocation..." -> "C2". Defaults to
+    B2 when nothing is found, matching the app's default learner level.
+    """
+    match = _CEFR_RE.search((level_or_hint or "").upper())
+    return match.group(1) if match else "B2"
+
+
 def _difficulty_anchor(level_or_hint: str) -> str:
     """Concrete rarity anchor for vocab generation, so the LLM stops defaulting to
     generic already-known words.
@@ -54,20 +63,25 @@ def _difficulty_anchor(level_or_hint: str) -> str:
     A1/A2/B1 tiers deliberately return "" — the pack gacha system (see
     game.BAND_FOR_RARITY) intentionally asks for common, easy words at those tiers
     ("D-tier: common everyday word"), so forcing a harder anchor there would break
-    that design. B2+ tiers get a fresh random sample from the Oxford 5000's
-    expanded, harder half (word 3001-5000 — everything above the basic Oxford 3000
-    core) plus an explicit ban on the specific over-suggested filler words LLMs
-    reach for without this anchor.
+    that design. B2+ tiers get two complementary samples: general-register rarity
+    from the Oxford 5000's expanded, harder half (word 3001-5000 — everything above
+    the basic Oxford 3000 core), and formal-essay register from the Academic Word
+    List (Coxhead) — the specific vocabulary that shows up constantly in IELTS/TOEFL
+    writing, which general word-frequency data doesn't specifically target. Also an
+    explicit ban on the specific over-suggested filler words LLMs reach for without
+    this anchor.
     """
-    match = _CEFR_RE.search((level_or_hint or "").upper())
-    code = match.group(1) if match else "B2"
+    code = _cefr_code(level_or_hint)
     if code in ("A1", "A2", "B1"):
         return ""
     tier = "c1" if code in ("C1", "C2") else "b2"
-    sample = vocab_sources.sample_target_words(24, tier=tier)
+    sample = vocab_sources.sample_target_words(18, tier=tier)
+    academic_sample = vocab_sources.sample_academic_words(8, tier=tier if tier == "c1" else "core")
     return (
         f"Difficulty anchor: real {'C1/C2' if tier == 'c1' else 'B2'}-tier English words, for scale "
         f"(Oxford 5000, the expanded/harder half of the list) — {', '.join(sample)}.\n"
+        "Also academic-register words that score well specifically in formal IELTS/TOEFL-style "
+        f"writing (Academic Word List) — {', '.join(academic_sample)}.\n"
         "These are ILLUSTRATIVE ONLY (do not just copy from this list) — find topic-specific items "
         f"at a comparable or higher rarity. NEVER suggest basic filler the learner already knows: "
         f"{', '.join(vocab_sources.TOO_EASY_WORDS)}.\n"
@@ -309,6 +323,7 @@ class LLMClient:
         words = data.get("words")
         if not isinstance(words, list):
             raise LLMError("LLM không trả về danh sách từ.")
+        baseline = vocab_sources.known_baseline_words(_cefr_code(band_hint or level).lower())
         seen = {t.lower() for t in known_terms}
         clean: list[dict[str, Any]] = []
         for item in words:
@@ -316,6 +331,13 @@ class LLMClient:
                 continue
             term = str(item.get("term", "")).strip()
             if not term or term.lower() in seen:
+                continue
+            # Deterministic backstop: drop single/whole-phrase matches against the
+            # real Oxford 3000 A1/A2 baseline instead of only trusting the prompt
+            # instruction. Only an exact match on the full term is dropped, so a
+            # legitimate collocation like "make a decision" survives even though
+            # it contains the basic word "make".
+            if term.lower() in baseline:
                 continue
             seen.add(term.lower())
             clean.append(item)

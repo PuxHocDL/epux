@@ -1,5 +1,5 @@
 from epux import vocab_sources as vs
-from epux.llm import _difficulty_anchor
+from epux.llm import _cefr_code, _difficulty_anchor
 
 
 def test_difficulty_anchor_empty_for_low_tiers():
@@ -28,3 +28,16 @@ def test_difficulty_anchor_picks_harder_pool_for_c_tiers():
     anchor_c1 = _difficulty_anchor("C1")
     assert "B2-tier" in anchor_b2
     assert "C1/C2-tier" in anchor_c1
+
+
+def test_difficulty_anchor_includes_academic_word_list_sample():
+    anchor = _difficulty_anchor("B2")
+    assert "Academic Word List" in anchor
+
+
+def test_cefr_code_extracts_from_free_text_hints():
+    assert _cefr_code("A2 (common everyday word)") == "A2"
+    assert _cefr_code("C2 rare idiom or striking collocation that would wow an IELTS examiner") == "C2"
+    assert _cefr_code("C1-C2 (advanced, impressive in IELTS)") == "C1"
+    assert _cefr_code("") == "B2"
+    assert _cefr_code("no cefr code here") == "B2"
