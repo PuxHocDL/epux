@@ -6,7 +6,7 @@ from typing import Any
 
 import requests
 
-from . import descriptors, task1, task2
+from . import descriptors, task1, task2, vocab_sources
 from .config import LLMSettings
 
 
@@ -42,6 +42,36 @@ def _repair_mojibake(data: Any) -> Any:
     if isinstance(data, dict):
         return {k: _repair_mojibake(v) for k, v in data.items()}
     return data
+
+
+_CEFR_RE = re.compile(r"\b(A1|A2|B1|B2|C1|C2)\b")
+
+
+def _difficulty_anchor(level_or_hint: str) -> str:
+    """Concrete rarity anchor for vocab generation, so the LLM stops defaulting to
+    generic already-known words.
+
+    A1/A2/B1 tiers deliberately return "" — the pack gacha system (see
+    game.BAND_FOR_RARITY) intentionally asks for common, easy words at those tiers
+    ("D-tier: common everyday word"), so forcing a harder anchor there would break
+    that design. B2+ tiers get a fresh random sample from the Oxford 5000's
+    expanded, harder half (word 3001-5000 — everything above the basic Oxford 3000
+    core) plus an explicit ban on the specific over-suggested filler words LLMs
+    reach for without this anchor.
+    """
+    match = _CEFR_RE.search((level_or_hint or "").upper())
+    code = match.group(1) if match else "B2"
+    if code in ("A1", "A2", "B1"):
+        return ""
+    tier = "c1" if code in ("C1", "C2") else "b2"
+    sample = vocab_sources.sample_target_words(24, tier=tier)
+    return (
+        f"Difficulty anchor: real {'C1/C2' if tier == 'c1' else 'B2'}-tier English words, for scale "
+        f"(Oxford 5000, the expanded/harder half of the list) — {', '.join(sample)}.\n"
+        "These are ILLUSTRATIVE ONLY (do not just copy from this list) — find topic-specific items "
+        f"at a comparable or higher rarity. NEVER suggest basic filler the learner already knows: "
+        f"{', '.join(vocab_sources.TOO_EASY_WORDS)}.\n"
+    )
 
 
 SYSTEM_BASE = (
@@ -205,6 +235,7 @@ class LLMClient:
     # -------------------------------------------------------------- features
 
     def suggest_topics(self, known_topics: list[str], level: str, count: int = 8) -> list[dict[str, Any]]:
+        curated = ", ".join(p["topic"] for p in vocab_sources.PASSAGES)
         user = (
             f"Suggest {count} vocabulary topics that appear often in the IELTS and TOEIC exams and are valuable "
             f"for a {level} learner working in IT.\n"
@@ -213,6 +244,9 @@ class LLMClient:
             "learner's list (environment, education, health, urbanisation, media, crime, culture...), "
             "a few sharper sub-angles of big themes (e.g. 'renewable energy' or 'urban housing' instead "
             "of yet another generic 'environment'), and 1-2 tied to daily life / IT work.\n"
+            f"When one fits naturally, prefer a topic close to these (real source material is ready for "
+            f"them, which makes the generated vocabulary more authentic): {curated}. Not mandatory — "
+            "only pick one of these if it's genuinely a good, varied fit, not just to force a match.\n"
             'Return {"topics": [{"name": "English topic name", "name_vi": "tÃªn tiáº¿ng Viá»‡t", '
             '"description_vi": "1 câu: vì sao chủ đề này hay gặp trong IELTS", '
             '"sample_words": ["3-4 từ ví dụ"]}]}'
@@ -235,11 +269,20 @@ class LLMClient:
         hint = f"All items must be {band_hint} difficulty.\n" if band_hint else (
             f"Difficulty: centered on {level}, with 1-2 easier items and 1-2 more advanced items.\n"
         )
+        anchor = _difficulty_anchor(band_hint or level)
+        passage = vocab_sources.find_passage(topic)
+        passage_note = (
+            "Authentic source text on this exact topic (adapted from Wikipedia, CC BY-SA 4.0) — draw "
+            "items directly from the real vocabulary and collocations it actually uses instead of "
+            f"inventing generic ones, and use it to keep your example sentences realistic:\n"
+            f"\"{passage['text']}\"\n\n"
+            if passage else ""
+        )
         context_str = f"preparing for the {context} exam" if context else "preparing for both IELTS and TOEIC exams"
         user = (
             f"Create {count} English vocabulary cards on the topic \"{topic}\" for a Vietnamese learner "
             f"{context_str} (target level {level}).\n"
-            + hint
+            + hint + anchor + passage_note
             + "Work in two steps (think silently, output only the final JSON):\n"
             f"STEP 1 â€” brainstorm {count} DIFFERENT sub-aspects of the topic (causes, effects, people, "
             "places, actions, feelings, problems, solutions, everyday situations, policy, tech angle...). "
